@@ -1,12 +1,16 @@
 package engine;
 
 import enums.GameMode;
+import enums.PieceEffect;
 import enums.PieceState;
+import enums.TeleportDest;
 import logger.Logger;
 import model.Board;
 import model.GameConstants;
 import model.MoveResult;
+import model.MysteryCell;
 import model.Piece;
+import model.RandomInitiator;
 import player.AbstractPlayer;
 import player.PlayerFactory;
 
@@ -108,7 +112,7 @@ public class GameEngine {
 
     private void spawnOrRelocateMysteryCell() {
         if (board.getMysteryCell() == null) {
-            board.setMysteryCell(new model.MysteryCell(GameConstants.NO_POSITION));
+            board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION));
             board.getMysteryCell().spawn(board);
         } else {
             board.getMysteryCell().tick();
@@ -141,15 +145,19 @@ public class GameEngine {
     }
 
     private void applyMove(Piece piece, MoveResult result, AbstractPlayer player) {
-        logger.logMove(piece, piece.getPosition(), result.getTargetCell(), piece.getDirection());
+        board.removePiece(piece, piece.getPosition());
         piece.setPosition(result.getTargetCell());
+        board.placePiece(piece, result.getTargetCell());
+        piece.setState(PieceState.ACTIVE);
+
+        logger.logMove(piece, piece.getPosition(), result.getTargetCell(), piece.getDirection());
 
         if (result.isCapture()) {
-            handleCapture(piece, result, player);
+            handleCapture(piece, result);
         }
 
         if (result.isHome()) {
-            piece.setState(PieceState.HOME);
+            handleHome(piece);
         }
 
         if (result.getTeleportDest() != null) {
@@ -157,39 +165,82 @@ public class GameEngine {
         }
     }
 
-    private void handleCapture(Piece piece, MoveResult result, AbstractPlayer player) {
+    private void handleCapture(Piece piece, MoveResult result) {
         Piece capturedPiece = result.getCapturedPiece();
         logger.logCapture(piece, capturedPiece);
         piece.capture();
+        board.removePiece(capturedPiece, capturedPiece.getPosition());
         capturedPiece.reset();
         turnManager.grantExtraRoll();
     }
 
-    private void handleTeleport(Piece piece, MoveResult result) {
-        piece.applyEffect(
-                resolveTeleportEffect(result.getTeleportDest())
-        );
+    private void handleHome(Piece piece) {
+        board.removePiece(piece, piece.getPosition());
+        piece.setState(PieceState.HOME);
     }
 
-    private enums.PieceEffect resolveTeleportEffect(enums.TeleportDest dest) {
+    private void handleTeleport(Piece piece, MoveResult result) {
+        PieceEffect effect = resolveTeleportEffect(result.getTeleportDest());
+        applyTeleportDestination(piece, result.getTeleportDest());
+        piece.applyEffect(effect);
+    }
+
+    private void applyTeleportDestination(Piece piece, TeleportDest dest) {
+        switch (dest) {
+            case BASE:
+                board.removePiece(piece, piece.getPosition());
+                piece.reset();
+                break;
+            case START_X:
+                movePieceToCell(piece, board.getStartX(piece.getColour()));
+                break;
+            case APPROACH:
+                movePieceToCell(piece, board.getApproach(piece.getColour()));
+                break;
+            default:
+                movePieceToCell(piece, resolveTeleportCell(dest));
+                break;
+        }
+    }
+
+    private void movePieceToCell(Piece piece, int cellId) {
+        board.removePiece(piece, piece.getPosition());
+        piece.setPosition(cellId);
+        board.placePiece(piece, cellId);
+    }
+
+    private int resolveTeleportCell(TeleportDest dest) {
+        switch (dest) {
+            case ALPHA:
+                return GameConstants.ALPHA_CELL;
+            case BETA:
+                return GameConstants.BETA_CELL;
+            case GAMMA:
+                return GameConstants.GAMMA_CELL;
+            default:
+                return GameConstants.NO_POSITION;
+        }
+    }
+
+    private PieceEffect resolveTeleportEffect(TeleportDest dest) {
         switch (dest) {
             case ALPHA:
                 return resolveAlphaEffect();
             case BETA:
-                return enums.PieceEffect.FROZEN;
+                return PieceEffect.FROZEN;
             case GAMMA:
-                return enums.PieceEffect.DIR_FLIP;
+                return PieceEffect.DIR_FLIP;
             default:
-                return enums.PieceEffect.NONE;
+                return PieceEffect.NONE;
         }
     }
 
-    private enums.PieceEffect resolveAlphaEffect() {
-        int srand = model.RandomInitiator.getInstance().nextInt(2);
+    private PieceEffect resolveAlphaEffect() {
+        int srand = RandomInitiator.getInstance().nextInt(2);
         if (srand == 0) {
-            return enums.PieceEffect.ENERGISED;
+            return PieceEffect.ENERGISED;
         }
-        return enums.PieceEffect.SICK;
+        return PieceEffect.SICK;
     }
 
     private void handleExtraRoll(MoveResult result) {

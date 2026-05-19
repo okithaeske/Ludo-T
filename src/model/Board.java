@@ -13,13 +13,15 @@ public class Board {
     private final HomeStraightCell[][] homeStraights;
     private final Map<Colour, Integer> approachCells;
     private final Map<Colour, Integer> startCells;
+    private final Map<Integer, List<Piece>> piecePositions;
     private MysteryCell mysteryCell;
 
     public Board() {
         cells = new StandardCell[GameConstants.BOARD_SIZE];
         homeStraights = new HomeStraightCell[GameConstants.NUM_PLAYERS][GameConstants.HOME_STRAIGHT_SIZE];
         approachCells = new HashMap<>();
-        startCells  = new HashMap<>();
+        startCells = new HashMap<>();
+        piecePositions = new HashMap<>();
         initialiseCells();
         initialiseApproachCells();
         initialiseStartCells();
@@ -58,6 +60,17 @@ public class Board {
         startCells.put(Colour.BLUE, GameConstants.BLUE_START);
     }
 
+    public void placePiece(Piece piece, int cellId) {
+        piecePositions.computeIfAbsent(cellId, k -> new ArrayList<>()).add(piece);
+    }
+
+    public void removePiece(Piece piece, int cellId) {
+        List<Piece> pieces = piecePositions.get(cellId);
+        if (pieces != null) {
+            pieces.remove(piece);
+        }
+    }
+
     public StandardCell getCell(int id) {
         return cells[id];
     }
@@ -75,9 +88,7 @@ public class Board {
     }
 
     public List<Piece> getPiecesAt(int id) {
-        // TODO: implement when players are initialised in GameEngine
-        List<Piece> piecesAtCell = new ArrayList<>();
-        return piecesAtCell;
+        return piecePositions.getOrDefault(id, new ArrayList<>());
     }
 
     public boolean isOccupied(int id) {
@@ -85,12 +96,12 @@ public class Board {
     }
 
     private boolean hasPiecesAt(int id) {
-        return !getPiecesAt(id).isEmpty();
+        return getPiecesAt(id).size() > 0;
     }
 
     public int getMysteryPosition() {
         if (mysteryCell == null) {
-            return -1;
+            return GameConstants.NO_POSITION;
         }
         return mysteryCell.getPosition();
     }
@@ -102,6 +113,4 @@ public class Board {
     public void setMysteryCell(MysteryCell mysteryCell) {
         this.mysteryCell = mysteryCell;
     }
-
-
 }
