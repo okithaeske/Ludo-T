@@ -124,7 +124,7 @@ public class GameEngine {
         int roll = turnManager.rollDice();
         logger.logRoll(player, roll);
 
-        if (turnManager.isExtraRollPending()) {
+        if (turnManager.isTripleSix()) {   // check triple six immediately after roll
             turnManager.handleTripleSix();
             return;
         }
@@ -140,17 +140,19 @@ public class GameEngine {
             applyMove(chosenPiece, result, player);
         }
 
-        handleExtraRoll(result);
+        handleExtraRoll(roll);
         turnManager.nextPlayer();
     }
 
     private void applyMove(Piece piece, MoveResult result, AbstractPlayer player) {
+        int fromCell = piece.getPosition(); // save BEFORE updating
+
         board.removePiece(piece, piece.getPosition());
         piece.setPosition(result.getTargetCell());
         board.placePiece(piece, result.getTargetCell());
         piece.setState(PieceState.ACTIVE);
 
-        logger.logMove(piece, piece.getPosition(), result.getTargetCell(), piece.getDirection());
+        logger.logMove(piece, fromCell, result.getTargetCell(), piece.getDirection());
 
         if (result.isCapture()) {
             handleCapture(piece, result);
@@ -232,8 +234,8 @@ public class GameEngine {
         return alphaEffects[RandomInitiator.getInstance().nextInt(alphaEffects.length)];
     }
 
-    private void handleExtraRoll(MoveResult result) {
-        if (result.isCapture()) {
+    private void handleExtraRoll(int roll) {
+        if (roll == GameConstants.MAX_DICE_ROLL) {
             turnManager.grantExtraRoll();
         }
     }

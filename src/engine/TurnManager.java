@@ -54,7 +54,7 @@ public class TurnManager {
         }
     }
 
-    private boolean isTripleSix() {
+    public boolean isTripleSix() {
         return consecutiveSixes == GameConstants.TRIPLE_SIX;
     }
 

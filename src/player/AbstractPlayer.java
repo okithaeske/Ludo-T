@@ -86,10 +86,9 @@ public abstract class AbstractPlayer {
     }
 
     protected boolean canCaptureOpponent(Piece piece, int roll, Board board) {
-        int targetCell = piece.getPosition() + roll;
+        int targetCell = piece.getPosition() + piece.getEffectiveRoll(roll);
         return hasOpponentPieceAt(board.getPiecesAt(targetCell));
     }
-
 
 
     public Colour getColour() { return colour; }

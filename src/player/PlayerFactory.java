@@ -22,7 +22,6 @@ public class PlayerFactory {
             case GREEN -> new GreenPlayer();
             case YELLOW -> new YellowPlayer();
             case BLUE -> new BluePlayer();
-            default -> throw new IllegalArgumentException("Unknown colour: " + colour);
         };
     }
 }

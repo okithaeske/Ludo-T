@@ -109,16 +109,16 @@ public class GreenPlayer extends AbstractPlayer {
     }
 
     private Piece avoidCapture(Board board) {
-        Piece safest = null;
-        int maxDistance = 0;
+        Piece leastAdvanced = null;
+        int maxDistanceToHome = 0;
         for (Piece piece : getPiecesOnBoard()) {
             int distance = board.distanceToHome(piece);
-            if (distance > maxDistance) {
-                maxDistance = distance;
-                safest = piece;
+            if (distance > maxDistanceToHome) {
+                maxDistanceToHome = distance;
+                leastAdvanced = piece;
             }
         }
-        return safest;
+        return leastAdvanced;
     }
 
 

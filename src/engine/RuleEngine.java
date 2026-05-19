@@ -88,7 +88,8 @@ public class RuleEngine {
     }
 
     private MoveResult applyLudoTRules(Piece piece, int roll, int targetCell, MoveResult result) {
-        if (checkMystery(piece)) {
+        if (checkMystery(piece, targetCell)) {
+            result.setMystery(true);
             result.setTeleportDest(board.getMysteryCell().getDestination());
             result.setLudoTBlocked(false);
         }
@@ -147,11 +148,11 @@ public class RuleEngine {
         return piece.getPosition() >= board.getApproach(piece.getColour());
     }
 
-    public boolean checkMystery(Piece piece) {
+    public boolean checkMystery(Piece piece, int targetCell) {
         if (board.getMysteryCell() == null) {
             return false;
         }
-        return piece.getPosition() == board.getMysteryPosition();
+        return targetCell == board.getMysteryPosition();
     }
 
     public void resolveBlock(Block block, int roll) {

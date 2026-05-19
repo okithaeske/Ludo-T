@@ -31,8 +31,8 @@ public class RedPlayer extends AbstractPlayer {
     }
 
     private Piece findCapturableTarget(int roll, Board board) {
-        for (Piece piece : getPiecesOnBoard()){
-            int targetcell = piece.getPosition() + roll;
+        for (Piece piece : getPiecesOnBoard()) {
+            int targetcell = piece.getPosition() + piece.getEffectiveRoll(roll);
             Piece capturedPiece = findOpponentAt(targetcell, board);
             if (capturedPiece != null) {
                 return piece;

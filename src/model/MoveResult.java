@@ -13,6 +13,7 @@ public class MoveResult {
     private boolean isHome;
     private TeleportDest teleportDest;
     private boolean isLudoTBlocked;
+    private boolean isMystery;
 
     public boolean isValid() {
         return valid;
@@ -36,6 +37,10 @@ public class MoveResult {
 
     public int getBlockedAt() {
         return blockedAt;
+    }
+
+    public boolean isMystery() {
+        return isMystery;
     }
 
     public boolean isHome() {
@@ -84,5 +89,9 @@ public class MoveResult {
 
     public void setLudoTBlocked(boolean ludoTBlocked) {
         isLudoTBlocked = ludoTBlocked;
+    }
+
+    public void setMystery(boolean mystery) {
+        isMystery = mystery;
     }
 }
