@@ -65,7 +65,7 @@ public class GameEngine {
     }
 
     private AbstractPlayer rollForFirstPlayer() {
-        AbstractPlayer firstPlayer = players.get(0);
+        AbstractPlayer firstPlayer = players.getFirst();
         int highestRoll = 0;
         for (AbstractPlayer player : players) {
             int roll = turnManager.rollDice();
@@ -210,37 +210,26 @@ public class GameEngine {
     }
 
     private int resolveTeleportCell(TeleportDest dest) {
-        switch (dest) {
-            case ALPHA:
-                return GameConstants.ALPHA_CELL;
-            case BETA:
-                return GameConstants.BETA_CELL;
-            case GAMMA:
-                return GameConstants.GAMMA_CELL;
-            default:
-                return GameConstants.NO_POSITION;
-        }
+        return switch (dest) {
+            case ALPHA -> GameConstants.ALPHA_CELL;
+            case BETA -> GameConstants.BETA_CELL;
+            case GAMMA -> GameConstants.GAMMA_CELL;
+            default -> GameConstants.NO_POSITION;
+        };
     }
 
     private PieceEffect resolveTeleportEffect(TeleportDest dest) {
-        switch (dest) {
-            case ALPHA:
-                return resolveAlphaEffect();
-            case BETA:
-                return PieceEffect.FROZEN;
-            case GAMMA:
-                return PieceEffect.DIR_FLIP;
-            default:
-                return PieceEffect.NONE;
-        }
+        return switch (dest) {
+            case ALPHA -> resolveAlphaEffect();
+            case BETA -> PieceEffect.FROZEN;
+            case GAMMA -> PieceEffect.DIR_FLIP;
+            default -> PieceEffect.NONE;
+        };
     }
 
     private PieceEffect resolveAlphaEffect() {
-        int srand = RandomInitiator.getInstance().nextInt(2);
-        if (srand == 0) {
-            return PieceEffect.ENERGISED;
-        }
-        return PieceEffect.SICK;
+        PieceEffect[] alphaEffects = {PieceEffect.ENERGISED, PieceEffect.SICK};
+        return alphaEffects[RandomInitiator.getInstance().nextInt(alphaEffects.length)];
     }
 
     private void handleExtraRoll(MoveResult result) {
