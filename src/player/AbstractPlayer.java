@@ -5,6 +5,7 @@ import enums.PieceState;
 import model.Board;
 import model.GameConstants;
 import model.Piece;
+import player.strategy.PieceSelectionStrategy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,7 @@ public abstract class AbstractPlayer {
     protected Colour colour;
     protected Piece[] pieces;
     protected String name;
+    private PieceSelectionStrategy strategy;
 
     public AbstractPlayer(Colour colour, String name) {
         this.colour = colour;
@@ -22,13 +24,19 @@ public abstract class AbstractPlayer {
         initialisePieces();
     }
 
+    public void setStrategy(PieceSelectionStrategy strategy) {
+        this.strategy = strategy;
+    }
+
     private void initialisePieces() {
         for (int i = 0; i < GameConstants.NUM_PIECES; i++) {
             pieces[i] = new Piece(colour.name().charAt(0) + String.valueOf(i + 1), colour);
         }
     }
 
-    public abstract Piece choosePiece(int roll, Board board);
+    public Piece choosePiece(int roll, Board board){
+        return strategy.choosePiece(roll,board);
+    }
 
     public List<Piece> getPiecesOnBoard() {
         List<Piece> onBoard = new ArrayList<>();
@@ -59,7 +67,7 @@ public abstract class AbstractPlayer {
         return true;
     }
 
-    protected Piece getPieceClosestToHome(Board board) {
+    public Piece getPieceClosestToHome(Board board) {
         Piece closest = null;
         int minDistance = Integer.MAX_VALUE;
         for (Piece piece : getPiecesOnBoard()) {
@@ -72,11 +80,11 @@ public abstract class AbstractPlayer {
         return closest;
     }
 
-    protected boolean hasPiecesAtBase() {
+    public boolean hasPiecesAtBase() {
         return getPiecesAtBase().size() > 0;
     }
 
-    protected boolean hasOpponentPieceAt(List<Piece> piecesAtTarget) {
+    public boolean hasOpponentPieceAt(List<Piece> piecesAtTarget) {
         for (Piece target : piecesAtTarget) {
             if (target.getColour() != this.colour) {
                 return true;
@@ -85,13 +93,21 @@ public abstract class AbstractPlayer {
         return false;
     }
 
-    protected boolean canCaptureOpponent(Piece piece, int roll, Board board) {
+    public boolean canCaptureOpponent(Piece piece, int roll, Board board) {
         int targetCell = piece.getPosition() + piece.getEffectiveRoll(roll);
         return hasOpponentPieceAt(board.getPiecesAt(targetCell));
     }
 
 
-    public Colour getColour() { return colour; }
-    public String getName() { return name; }
-    public Piece[] getPieces() { return pieces; }
+    public Colour getColour() {
+        return colour;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public Piece[] getPieces() {
+        return pieces;
+    }
 }
