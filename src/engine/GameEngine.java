@@ -26,9 +26,11 @@ public class GameEngine {
     private int roundNumber;
     private boolean gameOver;
     private final GameMode gameMode;
+    private final int maxRounds;
 
-    public GameEngine(GameMode gameMode) {
+    public GameEngine(GameMode gameMode, int maxRounds) {
         this.gameMode = gameMode;
+        this.maxRounds = maxRounds;
         this.board = new Board();
         this.logger = new Logger();
         this.players = PlayerFactory.createPlayers();

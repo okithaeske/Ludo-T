@@ -46,6 +46,7 @@ public class GameConstants {
 
     // Rounds
     public static final int MYSTERY_SPAWN_ROUND = 2;
+    public static final int MAX_ROUNDS = -1;
 
     // Mystery Cells
     public static final int ALPHA_CELL = 9;

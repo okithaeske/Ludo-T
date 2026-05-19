@@ -1,12 +1,14 @@
 import engine.GameEngine;
+import engine.GameEngineBuilder;
 import enums.GameMode;
-import model.RandomInitiator;
 
 public class Main {
 
     public static void main(String[] args) {
-        RandomInitiator.getInstance().setSeed(10);
-        GameEngine game = new GameEngine(GameMode.CLASSIC);
+        GameEngine game = new GameEngineBuilder()
+                .withMode(GameMode.CLASSIC)
+                .withSeed(10)
+                .build();
         game.startGame();
     }
 }
