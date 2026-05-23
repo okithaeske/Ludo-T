@@ -29,6 +29,15 @@ public class RuleEngine {
             return validateBaseMove(piece, roll, result);
         }
 
+        if (isHomeMove(piece, roll)) {
+            if (!canEnterHome(piece)) {
+                result.setValid(false);
+                return result;
+            }
+            result.setTargetCell(GameConstants.BOARD_SIZE);
+            return handleHomeMove(result);
+        }
+
         int targetCell = calculateTargetCell(piece, roll);
         result.setTargetCell(targetCell);
 
@@ -42,10 +51,6 @@ public class RuleEngine {
 
         if (isCaptureMove(piece, targetCell)) {
             return handleCapture(piece, targetCell, result);
-        }
-
-        if (isHomeMove(piece, targetCell)) {
-            return handleHomeMove(result);
         }
 
         result.setValid(true);
@@ -109,8 +114,12 @@ public class RuleEngine {
         return result;
     }
 
-    private boolean isHomeMove(Piece piece, int targetCell) {
-        return targetCell >= GameConstants.BOARD_SIZE;
+    // A piece goes home when its total travel distance from its colour's start cell
+    // reaches or exceeds BOARD_SIZE.
+    private boolean isHomeMove(Piece piece, int roll) {
+        int startCell = board.getStartX(piece.getColour());
+        int distFromStart = (piece.getPosition() - startCell + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        return distFromStart + piece.getEffectiveRoll(roll) >= GameConstants.BOARD_SIZE;
     }
 
     private MoveResult handleHomeMove(MoveResult result) {
@@ -135,9 +144,9 @@ public class RuleEngine {
 
     public boolean canEnterHome(Piece piece) {
         if (isLudoT()) {
-            return hasRequiredCaptures(piece) && hasPassedApproach(piece);
+            return hasRequiredCaptures(piece);
         }
-        return hasPassedApproach(piece);
+        return true;
     }
 
     private boolean hasRequiredCaptures(Piece piece) {
