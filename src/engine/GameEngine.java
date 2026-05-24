@@ -126,8 +126,19 @@ public class GameEngine {
         int roll = turnManager.rollDice();
         logger.logRoll(player, roll);
 
-        if (turnManager.isTripleSix()) {   // check triple six immediately after roll
+        if (turnManager.isTripleSix()) {
             turnManager.handleTripleSix();
+            return;
+        }
+
+        if (isFrozenEscape(player, roll)) {
+            handleFrozenEscape(player);
+            return;
+        }
+
+        if (hasActiveFrozenPiece(player)) {
+            tickFrozenPiece(player);
+            turnManager.nextPlayer();
             return;
         }
 
@@ -251,6 +262,46 @@ public class GameEngine {
             }
         }
         return false;
+    }
+
+    private boolean hasActiveFrozenPiece(AbstractPlayer player) {
+        for (Piece piece : player.getPieces()) {
+            if (piece.getActiveEffect() == PieceEffect.FROZEN
+                    && piece.getEffectRoundsLeft() > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isFrozenEscape(AbstractPlayer player, int roll) {
+        return hasActiveFrozenPiece(player) && turnManager.isTripleThree();
+    }
+
+    private void handleFrozenEscape(AbstractPlayer player) {
+        for (Piece piece : player.getPieces()) {
+            if (piece.getActiveEffect() == PieceEffect.FROZEN) {
+                logger.logMove(piece, piece.getPosition(),
+                        GameConstants.BASE_POSITION, piece.getDirection());
+                board.removePiece(piece, piece.getPosition());
+                piece.reset();
+                break;
+            }
+        }
+        turnManager.resetConsecutiveThrees();
+        turnManager.nextPlayer();
+    }
+
+    private void tickFrozenPiece(AbstractPlayer player) {
+        for (Piece piece : player.getPieces()) {
+            if (piece.getActiveEffect() == PieceEffect.FROZEN) {
+                piece.setEffectRoundsLeft(piece.getEffectRoundsLeft() - 1);
+                if (piece.getEffectRoundsLeft() <= 0) {
+                    piece.applyEffect(PieceEffect.NONE);
+                }
+                break;
+            }
+        }
     }
 
     public boolean isLudoT() {

@@ -52,4 +52,6 @@ public class GameConstants {
     public static final int ALPHA_CELL = 9;
     public static final int BETA_CELL = 27;
     public static final int GAMMA_CELL = 46;
+    public static final int FROZEN_ESCAPE_ROLL = 3;
+    public static final int TRIPLE_THREE = 3;
 }

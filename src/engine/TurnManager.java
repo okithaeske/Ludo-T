@@ -13,6 +13,7 @@ public class TurnManager {
     private int consecutiveSixes;
     private boolean extraRollPending;
     private final Dice dice;
+    private int consecutiveThrees;
 
     public TurnManager(List<AbstractPlayer> players) {
         this.turnOrder = players;
@@ -20,19 +21,26 @@ public class TurnManager {
         this.consecutiveSixes = 0;
         this.extraRollPending = false;
         this.dice = Dice.getInstance();
+        this.consecutiveThrees = 0;
     }
 
     public int rollDice() {
         int roll = dice.roll();
-        updateConsecutiveSixes(roll);
+        updateConsecutiveRolls(roll);
         return roll;
     }
 
-    private void updateConsecutiveSixes(int roll) {
+    private void updateConsecutiveRolls(int roll) {
         if (roll == GameConstants.MAX_DICE_ROLL) {
             consecutiveSixes++;
         } else {
             consecutiveSixes = 0;
+        }
+
+        if (roll == GameConstants.FROZEN_ESCAPE_ROLL) {
+            consecutiveThrees++;
+        } else {
+            consecutiveThrees = 0;
         }
     }
 
@@ -85,5 +93,13 @@ public class TurnManager {
 
     public int getConsecutiveSixes() {
         return consecutiveSixes;
+    }
+
+    public boolean isTripleThree() {
+        return consecutiveThrees >= GameConstants.TRIPLE_THREE;
+    }
+
+    public void resetConsecutiveThrees() {
+        consecutiveThrees = 0;
     }
 }
