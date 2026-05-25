@@ -19,7 +19,7 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
     @Override
     public Piece choosePiece(int roll, Board board) {
         Piece capturablePiece = findCapturableTarget(roll, board);
-        if (capturablePiece != null) {
+        if (!capturablePiece.isNull()) {
             return capturablePiece;
         }
 

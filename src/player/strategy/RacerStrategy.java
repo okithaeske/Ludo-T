@@ -37,7 +37,7 @@ public class RacerStrategy implements PieceSelectionStrategy {
     }
 
     private boolean canCapture(int roll, Board board) {
-        return findCaptureablePiece(roll, board) != null;
+        return !findCaptureablePiece(roll, board).isNull();
     }
 
     private Piece findCaptureablePiece(int roll, Board board) {

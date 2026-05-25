@@ -32,7 +32,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
         }
 
         Piece capturePiece = findCaptureForHome(roll, board);
-        if (capturePiece != null) {
+        if (!capturePiece.isNull()) {
             return capturePiece;
         }
 
@@ -68,7 +68,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
                 return piece;
             }
         }
-        return null;
+        return NoPiece.getInstance();
     }
 
     private boolean hasBlockOnBoard(Board board) {
