@@ -4,6 +4,7 @@ import enums.GameMode;
 import enums.PieceEffect;
 import enums.PieceState;
 import enums.TeleportDest;
+import logger.GameEventPublisher;
 import logger.Logger;
 import model.Board;
 import model.GameConstants;
@@ -22,17 +23,17 @@ public class GameEngine {
     private final TurnManager turnManager;
     private final RuleEngine ruleEngine;
     private final List<AbstractPlayer> players;
-    private final Logger logger;
+    private final GameEventPublisher publisher;
     private int roundNumber;
     private boolean gameOver;
     private final GameMode gameMode;
-    private final int maxRounds;
 
-    public GameEngine(GameMode gameMode, int maxRounds) {
+
+    public GameEngine(GameMode gameMode) {
         this.gameMode = gameMode;
-        this.maxRounds = maxRounds;
         this.board = new Board();
-        this.logger = new Logger();
+        this.publisher = new GameEventPublisher();
+        this.publisher.addListener(new Logger());
         this.players = PlayerFactory.createPlayers();
         this.ruleEngine = new RuleEngine(board, gameMode);
         this.turnManager = new TurnManager(players);
@@ -41,7 +42,7 @@ public class GameEngine {
     }
 
     public void startGame() {
-        logger.logGameStart();
+        publisher.publishGameStart();
         initPlayers();
         determineFirstPlayer();
         runGameLoop();
@@ -71,7 +72,7 @@ public class GameEngine {
         int highestRoll = 0;
         for (AbstractPlayer player : players) {
             int roll = turnManager.rollDice();
-            logger.logRoll(player, roll);
+            publisher.publishRoll(player, roll);
             if (roll > highestRoll) {
                 highestRoll = roll;
                 firstPlayer = player;
@@ -98,7 +99,7 @@ public class GameEngine {
             executeTurn(player);
         }
 
-        logger.logRoundStatus();
+        publisher.publishRoundComplete();
         checkWinCondition();
     }
 
@@ -119,12 +120,12 @@ public class GameEngine {
         } else {
             board.getMysteryCell().tick();
         }
-        logger.logMysterySpawn(board.getMysteryPosition());
+        publisher.publishMysterySpawn(board.getMysteryPosition());
     }
 
     private void executeTurn(AbstractPlayer player) {
         int roll = turnManager.rollDice();
-        logger.logRoll(player, roll);
+        publisher.publishRoll(player, roll);
 
         if (turnManager.isTripleSix()) {
             turnManager.handleTripleSix();
@@ -143,7 +144,7 @@ public class GameEngine {
         }
 
         Piece chosenPiece = player.choosePiece(roll, board);
-        if (chosenPiece == null) {
+        if (chosenPiece.isNull()) {
             turnManager.nextPlayer();
             return;
         }
@@ -165,7 +166,7 @@ public class GameEngine {
         board.placePiece(piece, result.getTargetCell());
         piece.setState(PieceState.ACTIVE);
 
-        logger.logMove(piece, fromCell, result.getTargetCell(), piece.getDirection());
+        publisher.publishMove(piece, fromCell, result.getTargetCell(), piece.getDirection());
 
         if (result.isCapture()) {
             handleCapture(piece, result);
@@ -182,7 +183,7 @@ public class GameEngine {
 
     private void handleCapture(Piece piece, MoveResult result) {
         Piece capturedPiece = result.getCapturedPiece();
-        logger.logCapture(piece, capturedPiece);
+        publisher.publishCapture(piece, capturedPiece);
         piece.capture();
         board.removePiece(capturedPiece, capturedPiece.getPosition());
         capturedPiece.reset();
@@ -256,7 +257,7 @@ public class GameEngine {
     public boolean checkWinCondition() {
         for (AbstractPlayer player : players) {
             if (player.allHome()) {
-                logger.logWinner(player);
+                publisher.publishWin(player);
                 gameOver = true;
                 return true;
             }
@@ -281,7 +282,7 @@ public class GameEngine {
     private void handleFrozenEscape(AbstractPlayer player) {
         for (Piece piece : player.getPieces()) {
             if (piece.getActiveEffect() == PieceEffect.FROZEN) {
-                logger.logMove(piece, piece.getPosition(),
+                publisher.publishMove(piece, piece.getPosition(),
                         GameConstants.BASE_POSITION, piece.getDirection());
                 board.removePiece(piece, piece.getPosition());
                 piece.reset();

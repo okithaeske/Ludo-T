@@ -2,6 +2,7 @@ package player.strategy;
 
 import model.Board;
 import model.GameConstants;
+import model.NoPiece;
 import model.Piece;
 import player.AbstractPlayer;
 
@@ -36,7 +37,7 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
                 return piece;
             }
         }
-        return null;
+        return NoPiece.getInstance();
     }
 
     private boolean hasOpponentAt(int targetCell, Board board, Piece mover) {

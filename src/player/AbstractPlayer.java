@@ -4,6 +4,7 @@ import enums.Colour;
 import enums.PieceState;
 import model.Board;
 import model.GameConstants;
+import model.NoPiece;
 import model.Piece;
 import player.strategy.PieceSelectionStrategy;
 
@@ -68,7 +69,7 @@ public abstract class AbstractPlayer {
     }
 
     public Piece getPieceClosestToHome(Board board) {
-        Piece closest = null;
+        Piece closest = NoPiece.getInstance();
         int minDistance = Integer.MAX_VALUE;
         for (Piece piece : getPiecesOnBoard()) {
             int distance = board.distanceToHome(piece);

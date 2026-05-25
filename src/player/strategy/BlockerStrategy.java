@@ -3,6 +3,7 @@ package player.strategy;
 import enums.Colour;
 import model.Board;
 import model.GameConstants;
+import model.NoPiece;
 import model.Piece;
 import player.AbstractPlayer;
 
@@ -85,7 +86,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
                 return piece;
             }
         }
-        return null;
+        return NoPiece.getInstance();
     }
 
     private Piece findCaptureForHome(int roll, Board board) {
@@ -97,11 +98,11 @@ public class BlockerStrategy implements PieceSelectionStrategy {
                 return piece;
             }
         }
-        return null;
+        return NoPiece.getInstance();
     }
 
     private Piece avoidCapture(Board board) {
-        Piece leastAdvanced = null;
+        Piece leastAdvanced = NoPiece.getInstance();
         int maxDistanceToHome = 0;
         for (Piece piece : player.getPiecesOnBoard()) {
             int distance = board.distanceToHome(piece);

@@ -60,6 +60,10 @@ public class Piece {
         return roll;
     }
 
+    public boolean isNull() {
+        return false;
+    }
+
     public boolean canEnterHomeStraight() {
         return captureCount >= 1;
     }

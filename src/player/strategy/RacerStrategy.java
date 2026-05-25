@@ -2,6 +2,7 @@ package player.strategy;
 
 import model.Board;
 import model.GameConstants;
+import model.NoPiece;
 import model.Piece;
 import player.AbstractPlayer;
 
@@ -45,6 +46,6 @@ public class RacerStrategy implements PieceSelectionStrategy {
                 return piece;
             }
         }
-        return null;
+        return NoPiece.getInstance();
     }
 }

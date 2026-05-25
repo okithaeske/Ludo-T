@@ -4,6 +4,7 @@ import enums.Direction;
 import enums.PieceState;
 import model.Board;
 import model.GameConstants;
+import model.NoPiece;
 import model.Piece;
 import player.AbstractPlayer;
 
@@ -25,7 +26,7 @@ public class MysteryHunterStrategy implements PieceSelectionStrategy {
 
         Piece nextPiece = getNextCyclePiece();
         if (nextPiece == null) {
-            return null;
+            return NoPiece.getInstance();
         }
 
         if (targetsMystery(nextPiece, board)) {
@@ -45,7 +46,7 @@ public class MysteryHunterStrategy implements PieceSelectionStrategy {
                 return piece;
             }
         }
-        return null;
+        return NoPiece.getInstance();
     }
 
     private boolean targetsMystery(Piece piece, Board board) {
@@ -67,6 +68,6 @@ public class MysteryHunterStrategy implements PieceSelectionStrategy {
                 return piece;
             }
         }
-        return null;
+        return NoPiece.getInstance();
     }
 }

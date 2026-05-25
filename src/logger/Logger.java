@@ -1,41 +1,49 @@
 package logger;
 
+import enums.Direction;
 import model.Block;
 import model.Piece;
-import enums.Direction;
 import player.AbstractPlayer;
 
-public class Logger {
+public class Logger implements GameEventListener {
 
-    public void logGameStart() {
+    @Override
+    public void onGameStart() {
         System.out.println("Game started");
     }
 
-    public void logRoll(AbstractPlayer player, int value) {
+    @Override
+    public void onRoll(AbstractPlayer player, int value) {
         System.out.println(player.getName() + " rolled " + value);
     }
 
-    public void logMove(Piece piece, int from, int to, Direction direction) {
+    @Override
+    public void onMove(Piece piece, int from, int to, Direction direction) {
         System.out.println(piece.getId() + " moved from " + from + " to " + to + " direction " + direction);
     }
 
-    public void logCapture(Piece attacker, Piece victim) {
+    @Override
+    public void onCapture(Piece attacker, Piece victim) {
         System.out.println(attacker.getId() + " captured " + victim.getId());
     }
 
-    public void logWinner(AbstractPlayer player) {
+    @Override
+    public void onWin(AbstractPlayer player) {
         System.out.println(player.getName() + " wins!");
     }
 
-    public void logRoundStatus() {
+    @Override
+    public void onRoundComplete() {
         System.out.println("Round complete");
     }
 
-    public void logMysterySpawn(int position) {
+    @Override
+    public void onMysterySpawn(int position) {
         System.out.println("Mystery cell spawned at " + position);
     }
 
-    public void logBlockFormed(Block block) {
+    @Override
+    public void onBlockFormed(Block block) {
         System.out.println("Block formed at " + block.getPosition() + " size " + block.getSize());
     }
 }
