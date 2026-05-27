@@ -29,7 +29,12 @@ public class Block {
     }
 
     public void breakBlock(Piece piece) {
+        piece.setDirection(piece.getOriginalDirection());
         pieces.remove(piece);
+    }
+
+    public void setDirection(Direction direction) {
+        this.direction = direction;
     }
 
     public boolean canBeCaptured(Block attacker) {

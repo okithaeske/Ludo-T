@@ -15,6 +15,7 @@ public class Piece {
     private PieceEffect activeEffect;
     private int effectRoundsLeft;
     private int approachPassCount;
+    private Direction originalDirection;
 
     public Piece(String id, Colour colour) {
         this.id = id;
@@ -22,6 +23,7 @@ public class Piece {
         this.position = GameConstants.BASE_POSITION;
         this.state = PieceState.BASE;
         this.direction = Direction.CW;
+        this.originalDirection = Direction.CW;
         this.captureCount = 0;
         this.activeEffect = PieceEffect.NONE;
         this.effectRoundsLeft = 0;
@@ -40,6 +42,7 @@ public class Piece {
         position = GameConstants.NO_POSITION;
         state = PieceState.BASE;
         direction = Direction.CW;
+        originalDirection = Direction.CW;
         captureCount = 0;
         activeEffect = PieceEffect.NONE;
         effectRoundsLeft = 0;
@@ -81,6 +84,8 @@ public class Piece {
     public void setPosition(int position) { this.position = position; }
     public void setState(PieceState state) { this.state = state; }
     public void setDirection(Direction direction) { this.direction = direction; }
+    public Direction getOriginalDirection() { return originalDirection; }
+    public void setOriginalDirection(Direction direction) { this.originalDirection = direction; }
     public void setApproachPassCount(int count) { this.approachPassCount = count; }
     public void setEffectRoundsLeft(int rounds) { this.effectRoundsLeft = rounds; }
 }

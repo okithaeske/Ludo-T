@@ -1,5 +1,6 @@
 package engine;
 
+import enums.Direction;
 import enums.GameMode;
 import enums.PieceEffect;
 import enums.PieceState;
@@ -15,7 +16,10 @@ import model.RandomInitiator;
 import player.AbstractPlayer;
 import player.PlayerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class GameEngine {
 
@@ -43,6 +47,7 @@ public class GameEngine {
 
     public void startGame() {
         publisher.publishGameStart();
+        publisher.publishGameInitialisation(players);
         initPlayers();
         determineFirstPlayer();
         runGameLoop();
@@ -70,14 +75,17 @@ public class GameEngine {
     private AbstractPlayer rollForFirstPlayer() {
         AbstractPlayer firstPlayer = players.getFirst();
         int highestRoll = 0;
+        List<Integer> rolls = new ArrayList<>();
         for (AbstractPlayer player : players) {
             int roll = turnManager.rollDice();
+            rolls.add(roll);
             publisher.publishRoll(player, roll);
             if (roll > highestRoll) {
                 highestRoll = roll;
                 firstPlayer = player;
             }
         }
+        publisher.publishFirstPlayerSelected(firstPlayer, players, rolls);
         return firstPlayer;
     }
 
@@ -99,6 +107,8 @@ public class GameEngine {
             executeTurn(player);
         }
 
+        // Rule spec §3: publish round-end summary after all players have moved
+        publisher.publishRoundSummary(players, board.getMysteryCell());
         publisher.publishRoundComplete();
         checkWinCondition();
     }
@@ -127,11 +137,16 @@ public class GameEngine {
         int roll = turnManager.rollDice();
         publisher.publishRoll(player, roll);
 
+        // Rule T-6 (3.4): triple six with blockade forces the block to break
         if (turnManager.isTripleSix()) {
+            if (isLudoT() && playerHasBlock(player)) {
+                forceBlockBreak(player);
+            }
             turnManager.handleTripleSix();
             return;
         }
 
+        // Rule T-13 (3.2): frozen piece rolls three 3s consecutively — teleport to base
         if (isFrozenEscape(player, roll)) {
             handleFrozenEscape(player);
             return;
@@ -145,6 +160,7 @@ public class GameEngine {
 
         Piece chosenPiece = player.choosePiece(roll, board);
         if (chosenPiece.isNull()) {
+            publisher.publishNoValidMove(player);
             turnManager.nextPlayer();
             return;
         }
@@ -166,7 +182,26 @@ public class GameEngine {
         board.placePiece(piece, result.getTargetCell());
         piece.setState(PieceState.ACTIVE);
 
-        publisher.publishMove(piece, fromCell, result.getTargetCell(), piece.getDirection());
+        // Rule T-1 (3.1): coin toss when piece moves from base to X
+        if (fromCell == GameConstants.BASE_POSITION) {
+            performCoinToss(piece);
+            publisher.publishPieceMoveToX(piece,
+                    player.getPiecesOnBoard().size(),
+                    player.getPiecesAtBase().size());
+        } else {
+            publisher.publishMove(piece, fromCell, result.getTargetCell(), piece.getDirection());
+        }
+
+        // Rule T-1 (4.2): track CCW approach cell passes for home entry
+        if (isLudoT() && piece.getDirection() == Direction.CCW
+                && !result.isHome() && fromCell != GameConstants.BASE_POSITION) {
+            trackApproachPass(piece, fromCell, result.getTargetCell());
+        }
+
+        // Log blocked-at-adjacent event
+        if (result.isBlockedAtAdjacent()) {
+            publisher.publishPieceBlockedAtAdjacent(piece, result.getTargetCell() + 1, result.getTargetCell());
+        }
 
         if (result.isCapture()) {
             handleCapture(piece, result);
@@ -178,6 +213,27 @@ public class GameEngine {
 
         if (result.getTeleportDest() != null) {
             handleTeleport(piece, result);
+        }
+    }
+
+    // Rule T-1 (3.1): coin toss to decide CW or CCW direction
+    private void performCoinToss(Piece piece) {
+        int toss = RandomInitiator.getInstance().nextInt(2);
+        Direction direction = (toss == 0) ? Direction.CW : Direction.CCW;
+        piece.setDirection(direction);
+        piece.setOriginalDirection(direction);
+        publisher.publishCoinToss(piece, direction);
+    }
+
+    // Rule T-1 (4.2): increment approachPassCount when CCW piece passes through approach cell
+    private void trackApproachPass(Piece piece, int fromPos, int targetPos) {
+        int approachCell = board.getApproach(piece.getColour());
+        // CCW distance from fromPos to approach cell
+        int distFromToApproach = (fromPos - approachCell + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        // CCW steps taken in this move
+        int stepsActual = (fromPos - targetPos + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        if (distFromToApproach > 0 && distFromToApproach <= stepsActual) {
+            piece.setApproachPassCount(piece.getApproachPassCount() + 1);
         }
     }
 
@@ -195,10 +251,40 @@ public class GameEngine {
         piece.setState(PieceState.HOME);
     }
 
+    // Rule T-15 (3.3): effects apply only via mystery-cell teleport, not natural landings
     private void handleTeleport(Piece piece, MoveResult result) {
-        PieceEffect effect = resolveTeleportEffect(result.getTeleportDest());
-        applyTeleportDestination(piece, result.getTeleportDest());
-        piece.applyEffect(effect);
+        // For CCW pieces destined for GAMMA → redirect to BETA (spec T-15/Gamma rule)
+        TeleportDest effectiveDest = resolveEffectiveDest(piece, result.getTeleportDest());
+        applyTeleportDestination(piece, effectiveDest);
+        PieceEffect effect = resolveTeleportEffect(effectiveDest);
+
+        if (effect == PieceEffect.DIR_FLIP) {
+            Direction from = piece.getDirection();
+            Direction to = (from == Direction.CW) ? Direction.CCW : Direction.CW;
+            piece.setDirection(to);
+            publisher.publishDirectionChange(piece, from, to);
+        } else if (effect != PieceEffect.NONE) {
+            piece.applyEffect(effect);
+            publishEffectEvent(piece, effect);
+        }
+    }
+
+    // CCW pieces teleported to GAMMA are redirected to BETA instead
+    private TeleportDest resolveEffectiveDest(Piece piece, TeleportDest requested) {
+        if (requested == TeleportDest.GAMMA && piece.getDirection() == Direction.CCW) {
+            publisher.publishGammaCCWTeleportToBeta(piece);
+            return TeleportDest.BETA;
+        }
+        return requested;
+    }
+
+    private void publishEffectEvent(Piece piece, PieceEffect effect) {
+        switch (effect) {
+            case FROZEN    -> publisher.publishPieceFrozen(piece);
+            case ENERGISED -> publisher.publishPieceEnergised(piece);
+            case SICK      -> publisher.publishPieceSick(piece);
+            default        -> {}
+        }
     }
 
     private void applyTeleportDestination(Piece piece, TeleportDest dest) {
@@ -212,6 +298,9 @@ public class GameEngine {
                 break;
             case APPROACH:
                 movePieceToCell(piece, board.getApproach(piece.getColour()));
+                break;
+            case GAMMA:
+                movePieceToCell(piece, GameConstants.GAMMA_CELL);
                 break;
             default:
                 movePieceToCell(piece, resolveTeleportCell(dest));
@@ -228,18 +317,18 @@ public class GameEngine {
     private int resolveTeleportCell(TeleportDest dest) {
         return switch (dest) {
             case ALPHA -> GameConstants.ALPHA_CELL;
-            case BETA -> GameConstants.BETA_CELL;
+            case BETA  -> GameConstants.BETA_CELL;
             case GAMMA -> GameConstants.GAMMA_CELL;
-            default -> GameConstants.NO_POSITION;
+            default    -> GameConstants.NO_POSITION;
         };
     }
 
     private PieceEffect resolveTeleportEffect(TeleportDest dest) {
         return switch (dest) {
             case ALPHA -> resolveAlphaEffect();
-            case BETA -> PieceEffect.FROZEN;
+            case BETA  -> PieceEffect.FROZEN;
             case GAMMA -> PieceEffect.DIR_FLIP;
-            default -> PieceEffect.NONE;
+            default    -> PieceEffect.NONE;
         };
     }
 
@@ -279,11 +368,11 @@ public class GameEngine {
         return hasActiveFrozenPiece(player) && turnManager.isTripleThree();
     }
 
+    // Rule T-13 (3.2): frozen piece teleported to base after rolling three consecutive 3s
     private void handleFrozenEscape(AbstractPlayer player) {
         for (Piece piece : player.getPieces()) {
             if (piece.getActiveEffect() == PieceEffect.FROZEN) {
-                publisher.publishMove(piece, piece.getPosition(),
-                        GameConstants.BASE_POSITION, piece.getDirection());
+                publisher.publishFrozenEscapeToBase(piece);
                 board.removePiece(piece, piece.getPosition());
                 piece.reset();
                 break;
@@ -301,6 +390,48 @@ public class GameEngine {
                     piece.applyEffect(PieceEffect.NONE);
                 }
                 break;
+            }
+        }
+    }
+
+    // Rule T-6 (3.4): detect if player has any block (2+ pieces at same position)
+    private boolean playerHasBlock(AbstractPlayer player) {
+        Map<Integer, Integer> posCount = new HashMap<>();
+        for (Piece piece : player.getPiecesOnBoard()) {
+            posCount.merge(piece.getPosition(), 1, Integer::sum);
+        }
+        for (int count : posCount.values()) {
+            if (count >= GameConstants.MIN_BLOCK_SIZE) return true;
+        }
+        return false;
+    }
+
+    // Rule T-6 (3.4): force block break — keep first piece, move rest 6 cells in originalDirection
+    private void forceBlockBreak(AbstractPlayer player) {
+        Map<Integer, List<Piece>> blockMap = new HashMap<>();
+        for (Piece piece : player.getPiecesOnBoard()) {
+            blockMap.computeIfAbsent(piece.getPosition(), k -> new ArrayList<>()).add(piece);
+        }
+        for (Map.Entry<Integer, List<Piece>> entry : blockMap.entrySet()) {
+            List<Piece> blockPieces = entry.getValue();
+            if (blockPieces.size() >= GameConstants.MIN_BLOCK_SIZE) {
+                // Keep the first piece; move all others
+                for (int i = 1; i < blockPieces.size(); i++) {
+                    Piece piece = blockPieces.get(i);
+                    int fromPos = piece.getPosition();
+                    int newPos;
+                    if (piece.getOriginalDirection() == Direction.CCW) {
+                        newPos = (fromPos - GameConstants.TRIPLE_SIX_BLOCKADE_MOVE
+                                + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+                    } else {
+                        newPos = (fromPos + GameConstants.TRIPLE_SIX_BLOCKADE_MOVE)
+                                % GameConstants.BOARD_SIZE;
+                    }
+                    board.removePiece(piece, fromPos);
+                    piece.setPosition(newPos);
+                    board.placePiece(piece, newPos);
+                    publisher.publishMove(piece, fromPos, newPos, piece.getOriginalDirection());
+                }
             }
         }
     }

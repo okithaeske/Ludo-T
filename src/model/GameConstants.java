@@ -54,4 +54,9 @@ public class GameConstants {
     public static final int GAMMA_CELL = 46;
     public static final int FROZEN_ESCAPE_ROLL = 3;
     public static final int TRIPLE_THREE = 3;
+
+    // T-1: CCW approach passes required for home entry
+    public static final int APPROACH_PASS_REQUIRED_CCW = 2;
+    // T-6: forced block-break move distance on triple six
+    public static final int TRIPLE_SIX_BLOCKADE_MOVE = 6;
 }

@@ -41,8 +41,14 @@ public class RuleEngine {
         int targetCell = calculateTargetCell(piece, roll);
         result.setTargetCell(targetCell);
 
+        // Own pieces at target: block formation or blocked
         if (isOwnPieceAt(piece, targetCell)) {
-            return handleSameColourBlock(result, targetCell);
+            return handleSameColourBlock(result, targetCell, piece);
+        }
+
+        // Opponent block at target: stop at adjacent cell (T-3)
+        if (isOpponentBlockAt(piece, targetCell)) {
+            return handleOpponentBlock(piece, result, targetCell);
         }
 
         if (isLudoT()) {
@@ -71,7 +77,12 @@ public class RuleEngine {
         return result;
     }
 
+    // Rule T-1 fix (4.1): CCW subtracts position
     private int calculateTargetCell(Piece piece, int roll) {
+        if (piece.getDirection() == Direction.CCW) {
+            return (piece.getPosition() - piece.getEffectiveRoll(roll)
+                    + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        }
         return (piece.getPosition() + piece.getEffectiveRoll(roll)) % GameConstants.BOARD_SIZE;
     }
 
@@ -85,10 +96,43 @@ public class RuleEngine {
         return false;
     }
 
-    private MoveResult handleSameColourBlock(MoveResult result, int targetCell) {
-        result.setValid(false);
-        result.setSameColourBlocked(true);
-        result.setBlockedAt(targetCell);
+    // Rule T-4 fix (4.5): allow block formation (1 friendly at target = valid),
+    // prevent joining an existing full block (2+ = invalid)
+    private MoveResult handleSameColourBlock(MoveResult result, int targetCell, Piece piece) {
+        long sameColourCount = board.getPiecesAt(targetCell).stream()
+                .filter(p -> p.getColour() == piece.getColour()).count();
+        if (sameColourCount >= GameConstants.MIN_BLOCK_SIZE) {
+            // Target already has a full block — can't join
+            result.setValid(false);
+            result.setSameColourBlocked(true);
+            result.setBlockedAt(targetCell);
+        } else {
+            // Exactly 1 friendly piece — form a block
+            result.setValid(true);
+            result.setTargetCell(targetCell);
+        }
+        return result;
+    }
+
+    // Rule T-3 fix (4.3): opponent block stops attacker at adjacent cell
+    private boolean isOpponentBlockAt(Piece piece, int cell) {
+        long opponentCount = board.getPiecesAt(cell).stream()
+                .filter(p -> p.getColour() != piece.getColour()).count();
+        return opponentCount >= GameConstants.MIN_BLOCK_SIZE;
+    }
+
+    private MoveResult handleOpponentBlock(Piece piece, MoveResult result, int blockCell) {
+        int adjacentCell;
+        if (piece.getDirection() == Direction.CCW) {
+            // CCW: one cell after the block (higher index = behind in CCW travel)
+            adjacentCell = (blockCell + 1) % GameConstants.BOARD_SIZE;
+        } else {
+            // CW: one cell before the block
+            adjacentCell = (blockCell - 1 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        }
+        result.setTargetCell(adjacentCell);
+        result.setValid(true);
+        result.setBlockedAtAdjacent(true);
         return result;
     }
 
@@ -114,12 +158,28 @@ public class RuleEngine {
         return result;
     }
 
-    // A piece goes home when its total travel distance from its colour's start cell
-    // reaches or exceeds BOARD_SIZE.
+    // Rule T-1 fix (4.2/4.4): separate CW and CCW home-move detection
     private boolean isHomeMove(Piece piece, int roll) {
+        if (piece.getDirection() == Direction.CCW) {
+            return isHomeMoveForCCW(piece, roll);
+        }
+        // CW: travelled enough from start cell
         int startCell = board.getStartX(piece.getColour());
-        int distFromStart = (piece.getPosition() - startCell + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        int distFromStart = (piece.getPosition() - startCell + GameConstants.BOARD_SIZE)
+                % GameConstants.BOARD_SIZE;
         return distFromStart + piece.getEffectiveRoll(roll) >= GameConstants.BOARD_SIZE;
+    }
+
+    // CCW home entry: must have passed approach cell twice, and this move would reach it again
+    private boolean isHomeMoveForCCW(Piece piece, int roll) {
+        if (piece.getApproachPassCount() < GameConstants.APPROACH_PASS_REQUIRED_CCW) {
+            return false;
+        }
+        int approachCell = board.getApproach(piece.getColour());
+        // CCW distance from current position to approach cell
+        int distToApproach = (piece.getPosition() - approachCell + GameConstants.BOARD_SIZE)
+                % GameConstants.BOARD_SIZE;
+        return distToApproach <= piece.getEffectiveRoll(roll);
     }
 
     private MoveResult handleHomeMove(MoveResult result) {
@@ -153,10 +213,6 @@ public class RuleEngine {
         return piece.getCaptureCount() >= GameConstants.MIN_CAPTURES_FOR_HOME;
     }
 
-    private boolean hasPassedApproach(Piece piece) {
-        return piece.getPosition() >= board.getApproach(piece.getColour());
-    }
-
     public boolean checkMystery(Piece piece, int targetCell) {
         if (board.getMysteryCell() == null) {
             return false;
@@ -164,10 +220,24 @@ public class RuleEngine {
         return targetCell == board.getMysteryPosition();
     }
 
+    // Rule T-4 fix (4.6): block movement bypasses getEffectiveRoll; updates board positions
     public void resolveBlock(Block block, int roll) {
         int steps = roll / block.getSize();
+        Direction dir = block.getDirectionForMove();
         for (Piece piece : block.getPieces()) {
-            piece.move(steps);
+            int fromPos = piece.getPosition();
+            int newPos;
+            if (dir == Direction.CCW) {
+                newPos = (fromPos - steps + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+            } else {
+                newPos = (fromPos + steps) % GameConstants.BOARD_SIZE;
+            }
+            board.removePiece(piece, fromPos);
+            piece.setPosition(newPos);
+            board.placePiece(piece, newPos);
+        }
+        if (!block.getPieces().isEmpty()) {
+            block.setPosition(block.getPieces().get(0).getPosition());
         }
     }
 
@@ -188,6 +258,13 @@ public class RuleEngine {
         for (Piece piece : pieces) {
             piece.capture();
         }
+    }
+
+    // Rule T-4 fix (4.5): resolve block direction from the piece with greater distance to home
+    public Direction resolveBlockDirection(Piece p1, Piece p2, Board board) {
+        int dist1 = board.distanceToHome(p1);
+        int dist2 = board.distanceToHome(p2);
+        return dist1 >= dist2 ? p1.getDirection() : p2.getDirection();
     }
 
     private boolean isLudoT() {

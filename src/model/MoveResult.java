@@ -14,6 +14,7 @@ public class MoveResult {
     private TeleportDest teleportDest;
     private boolean isLudoTBlocked;
     private boolean isMystery;
+    private boolean blockedAtAdjacent;
 
     public boolean isValid() {
         return valid;
@@ -93,5 +94,13 @@ public class MoveResult {
 
     public void setMystery(boolean mystery) {
         isMystery = mystery;
+    }
+
+    public boolean isBlockedAtAdjacent() {
+        return blockedAtAdjacent;
+    }
+
+    public void setBlockedAtAdjacent(boolean blockedAtAdjacent) {
+        this.blockedAtAdjacent = blockedAtAdjacent;
     }
 }
