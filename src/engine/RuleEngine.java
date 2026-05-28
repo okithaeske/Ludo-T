@@ -32,10 +32,25 @@ public class RuleEngine {
             return validateBaseMove(piece, roll, result);
         }
 
-        // NEW: entering home straight from standard path (CW pieces only)
+        // Entering home straight from standard path (CW pieces only)
         if (isHomeStraightEntry(piece, roll)) {
             if (!canEnterHome(piece)) {
-                result.setValid(false);
+                // Not yet qualified — continue moving normally past approach cell
+                int targetCell = calculateTargetCell(piece, roll);
+                result.setTargetCell(targetCell);
+                if (isOwnPieceAt(piece, targetCell)) {
+                    return handleSameColourBlock(result, targetCell, piece);
+                }
+                if (isOpponentBlockAt(piece, targetCell)) {
+                    return handleOpponentBlock(piece, result, targetCell);
+                }
+                if (isLudoT()) {
+                    result = applyLudoTRules(piece, roll, targetCell, result);
+                }
+                if (isCaptureMove(piece, targetCell)) {
+                    return handleCapture(piece, targetCell, result);
+                }
+                result.setValid(true);
                 return result;
             }
             int newPos = calculateHomeStraightPosition(piece, roll);
