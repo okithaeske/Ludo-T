@@ -146,4 +146,16 @@ public class GameEventPublisher {
             listener.onPieceMoveToX(piece, piecesOnBoard, piecesAtBase);
         }
     }
+
+    public void publishBlockBrokenAtApproach(Block block, int approachCell) {
+        for (GameEventListener listener : listeners) {
+            listener.onBlockBrokenAtApproach(block, approachCell);
+        }
+    }
+
+    public void publishBlockCapture(Block attacker, Block defender) {
+        for (GameEventListener listener : listeners) {
+            listener.onBlockCapture(attacker, defender);
+        }
+    }
 }

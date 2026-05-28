@@ -16,6 +16,7 @@ public class Piece {
     private int effectRoundsLeft;
     private int approachPassCount;
     private Direction originalDirection;
+    private int homeStraightPosition; // 0 = not in straight, 1-5 = position inside straight
 
     public Piece(String id, Colour colour) {
         this.id = id;
@@ -28,6 +29,7 @@ public class Piece {
         this.activeEffect = PieceEffect.NONE;
         this.effectRoundsLeft = 0;
         this.approachPassCount = 0;
+        this.homeStraightPosition = 0;
     }
 
     public void move(int steps) {
@@ -47,6 +49,7 @@ public class Piece {
         activeEffect = PieceEffect.NONE;
         effectRoundsLeft = 0;
         approachPassCount = 0;
+        homeStraightPosition = 0;
     }
 
     public void applyEffect(PieceEffect effect) {
@@ -88,4 +91,16 @@ public class Piece {
     public void setOriginalDirection(Direction direction) { this.originalDirection = direction; }
     public void setApproachPassCount(int count) { this.approachPassCount = count; }
     public void setEffectRoundsLeft(int rounds) { this.effectRoundsLeft = rounds; }
+
+    public int getHomeStraightPosition() { return homeStraightPosition; }
+    public void setHomeStraightPosition(int pos) { this.homeStraightPosition = pos; }
+
+    public boolean isInHomeStraight() { return homeStraightPosition > 0; }
+
+    public void clearMovementEffects() {
+        if (activeEffect == PieceEffect.ENERGISED || activeEffect == PieceEffect.SICK) {
+            activeEffect = PieceEffect.NONE;
+            effectRoundsLeft = 0;
+        }
+    }
 }

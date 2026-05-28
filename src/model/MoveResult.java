@@ -15,6 +15,11 @@ public class MoveResult {
     private boolean isLudoTBlocked;
     private boolean isMystery;
     private boolean blockedAtAdjacent;
+    private boolean enteringHomeStraight;
+    private boolean movingInHomeStraight;
+    private int homeStraightPosition;
+    private boolean blockCapture;
+    private Block defenderBlock;
 
     public boolean isValid() {
         return valid;
@@ -103,4 +108,19 @@ public class MoveResult {
     public void setBlockedAtAdjacent(boolean blockedAtAdjacent) {
         this.blockedAtAdjacent = blockedAtAdjacent;
     }
+
+    public boolean isEnteringHomeStraight() { return enteringHomeStraight; }
+    public void setEnteringHomeStraight(boolean enteringHomeStraight) { this.enteringHomeStraight = enteringHomeStraight; }
+
+    public boolean isMovingInHomeStraight() { return movingInHomeStraight; }
+    public void setMovingInHomeStraight(boolean movingInHomeStraight) { this.movingInHomeStraight = movingInHomeStraight; }
+
+    public int getHomeStraightPosition() { return homeStraightPosition; }
+    public void setHomeStraightPosition(int homeStraightPosition) { this.homeStraightPosition = homeStraightPosition; }
+
+    public boolean isBlockCapture() { return blockCapture; }
+    public void setBlockCapture(boolean blockCapture) { this.blockCapture = blockCapture; }
+
+    public Block getDefenderBlock() { return defenderBlock; }
+    public void setDefenderBlock(Block defenderBlock) { this.defenderBlock = defenderBlock; }
 }

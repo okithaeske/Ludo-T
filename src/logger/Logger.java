@@ -179,4 +179,16 @@ public class Logger implements GameEventListener {
         System.out.println(piece.getColour() + " player now has " + piecesOnBoard
                 + "/4 pieces on the board and " + piecesAtBase + "/4 pieces on the base.");
     }
+
+    @Override
+    public void onBlockBrokenAtApproach(Block block, int approachCell) {
+        System.out.println("Block broken at approach cell " + approachCell
+                + ". Pieces placed at approach cell and effects cleared.");
+    }
+
+    @Override
+    public void onBlockCapture(Block attacker, Block defender) {
+        System.out.println("Block capture: attacker block (size " + attacker.getSize()
+                + ") captured defender block (size " + defender.getSize() + ").");
+    }
 }

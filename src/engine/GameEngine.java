@@ -7,6 +7,8 @@ import enums.PieceState;
 import enums.TeleportDest;
 import logger.GameEventPublisher;
 import logger.Logger;
+import model.Block;
+import model.BlockMoveResult;
 import model.Board;
 import model.GameConstants;
 import model.MoveResult;
@@ -165,45 +167,112 @@ public class GameEngine {
             return;
         }
 
-        MoveResult result = ruleEngine.validateMove(chosenPiece, roll);
+        Block currentBlock = buildBlockForPiece(chosenPiece);
+        MoveResult result;
+        if (currentBlock != null) {
+            result = ruleEngine.validateBlockMove(currentBlock, roll);
+        } else {
+            result = ruleEngine.validateMove(chosenPiece, roll);
+        }
+
         if (result.isValid()) {
-            applyMove(chosenPiece, result, player);
+            applyMove(chosenPiece, result, player, roll, currentBlock);
         }
 
         handleExtraRoll(roll);
         turnManager.nextPlayer();
     }
 
-    private void applyMove(Piece piece, MoveResult result, AbstractPlayer player) {
-        int fromCell = piece.getPosition(); // save BEFORE updating
+    private Block buildBlockForPiece(Piece piece) {
+        List<Piece> sameColorAtPos = new ArrayList<>();
+        for (Piece p : board.getPiecesAt(piece.getPosition())) {
+            if (p.getColour() == piece.getColour()) {
+                sameColorAtPos.add(p);
+            }
+        }
+        if (sameColorAtPos.size() < GameConstants.MIN_BLOCK_SIZE) return null;
+        Block block = new Block(piece.getPosition(), piece.getDirection());
+        for (Piece p : sameColorAtPos) {
+            block.addPiece(p);
+        }
+        return block;
+    }
 
-        board.removePiece(piece, piece.getPosition());
-        piece.setPosition(result.getTargetCell());
-        board.placePiece(piece, result.getTargetCell());
-        piece.setState(PieceState.ACTIVE);
+    private void applyMove(Piece piece, MoveResult result, AbstractPlayer player, int roll, Block currentBlock) {
+        int fromCell = piece.getPosition();
 
-        // Rule T-1 (3.1): coin toss when piece moves from base to X
-        if (fromCell == GameConstants.BASE_POSITION) {
-            performCoinToss(piece);
-            publisher.publishPieceMoveToX(piece,
-                    player.getPiecesOnBoard().size(),
-                    player.getPiecesAtBase().size());
+        // Home straight moves: don't update standard board position
+        if (result.isEnteringHomeStraight() || result.isMovingInHomeStraight()) {
+            piece.setHomeStraightPosition(result.getHomeStraightPosition());
+            piece.clearMovementEffects();
+            publisher.publishMove(piece, fromCell, result.getHomeStraightPosition(), piece.getDirection());
+            return;
+        }
+
+        if (currentBlock != null) {
+            if (result.isBlockedAtAdjacent()) {
+                // Block stopped at adjacent cell — move all pieces to adjacent
+                int targetCell = result.getTargetCell();
+                for (Piece bp : new ArrayList<>(currentBlock.getPieces())) {
+                    board.removePiece(bp, bp.getPosition());
+                    bp.setPosition(targetCell);
+                    board.placePiece(bp, targetCell);
+                }
+                piece.setState(PieceState.ACTIVE);
+                publisher.publishMove(piece, fromCell, targetCell, piece.getDirection());
+                publisher.publishPieceBlockedAtAdjacent(piece, targetCell + 1, targetCell);
+            } else {
+                // Normal block move or block capture — resolveBlock handles all piece positions
+                BlockMoveResult blockResult = ruleEngine.resolveBlock(currentBlock, roll);
+                piece.setState(PieceState.ACTIVE);
+                if (blockResult.brokeAtApproach()) {
+                    publisher.publishBlockBrokenAtApproach(currentBlock, blockResult.getApproachCell());
+                    return;
+                }
+                publisher.publishMove(piece, fromCell, piece.getPosition(), piece.getDirection());
+            }
         } else {
-            publisher.publishMove(piece, fromCell, result.getTargetCell(), piece.getDirection());
+            // Normal single-piece board move
+            board.removePiece(piece, piece.getPosition());
+            piece.setPosition(result.getTargetCell());
+            board.placePiece(piece, result.getTargetCell());
+            piece.setState(PieceState.ACTIVE);
+
+            // Rule T-1 (3.1): coin toss when piece moves from base to X
+            if (fromCell == GameConstants.BASE_POSITION) {
+                performCoinToss(piece);
+                publisher.publishPieceMoveToX(piece,
+                        player.getPiecesOnBoard().size(),
+                        player.getPiecesAtBase().size());
+            } else {
+                publisher.publishMove(piece, fromCell, result.getTargetCell(), piece.getDirection());
+            }
         }
 
         // Rule T-1 (4.2): track CCW approach cell passes for home entry
         if (isLudoT() && piece.getDirection() == Direction.CCW
                 && !result.isHome() && fromCell != GameConstants.BASE_POSITION) {
-            trackApproachPass(piece, fromCell, result.getTargetCell());
+            trackApproachPass(piece, fromCell, piece.getPosition());
         }
 
-        // Log blocked-at-adjacent event
-        if (result.isBlockedAtAdjacent()) {
+        // Log blocked-at-adjacent event for non-block single pieces
+        if (result.isBlockedAtAdjacent() && currentBlock == null) {
             publisher.publishPieceBlockedAtAdjacent(piece, result.getTargetCell() + 1, result.getTargetCell());
         }
 
-        if (result.isCapture()) {
+        // Capture handling
+        if (result.isBlockCapture() && currentBlock != null) {
+            ruleEngine.applyBlockCapture(currentBlock, result.getDefenderBlock());
+            publisher.publishBlockCapture(currentBlock, result.getDefenderBlock());
+        } else if (result.isCapture() && currentBlock != null) {
+            // Block captures a single piece — all block pieces get capture count
+            for (Piece blockPiece : currentBlock.getPieces()) {
+                blockPiece.capture();
+            }
+            board.removePiece(result.getCapturedPiece(), result.getCapturedPiece().getPosition());
+            result.getCapturedPiece().reset();
+            turnManager.grantExtraRoll();
+        } else if (result.isCapture()) {
             handleCapture(piece, result);
         }
 
@@ -228,9 +297,7 @@ public class GameEngine {
     // Rule T-1 (4.2): increment approachPassCount when CCW piece passes through approach cell
     private void trackApproachPass(Piece piece, int fromPos, int targetPos) {
         int approachCell = board.getApproach(piece.getColour());
-        // CCW distance from fromPos to approach cell
         int distFromToApproach = (fromPos - approachCell + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
-        // CCW steps taken in this move
         int stepsActual = (fromPos - targetPos + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
         if (distFromToApproach > 0 && distFromToApproach <= stepsActual) {
             piece.setApproachPassCount(piece.getApproachPassCount() + 1);
@@ -253,7 +320,6 @@ public class GameEngine {
 
     // Rule T-15 (3.3): effects apply only via mystery-cell teleport, not natural landings
     private void handleTeleport(Piece piece, MoveResult result) {
-        // For CCW pieces destined for GAMMA → redirect to BETA (spec T-15/Gamma rule)
         TeleportDest effectiveDest = resolveEffectiveDest(piece, result.getTeleportDest());
         applyTeleportDestination(piece, effectiveDest);
         PieceEffect effect = resolveTeleportEffect(effectiveDest);

@@ -38,7 +38,7 @@ public class Block {
     }
 
     public boolean canBeCaptured(Block attacker) {
-        return attacker.getSize() == this.getSize();
+        return attacker.getSize() >= this.getSize();
     }
 
     public List<Piece> getPieces() {

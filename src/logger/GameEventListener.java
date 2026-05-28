@@ -56,4 +56,10 @@ public interface GameEventListener {
 
     // Piece moved from base to X with board/base counts
     void onPieceMoveToX(Piece piece, int piecesOnBoard, int piecesAtBase);
+
+    // Block auto-breaks when it reaches the approach cell
+    void onBlockBrokenAtApproach(Block block, int approachCell);
+
+    // Attacker block captures defender block
+    void onBlockCapture(Block attacker, Block defender);
 }
