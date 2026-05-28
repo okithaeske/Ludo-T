@@ -32,6 +32,11 @@ public class RuleEngine {
             return validateBaseMove(piece, roll, result);
         }
 
+        // Fix 26: strip ENERGISED/SICK when effective roll crosses the approach cell
+        if (willCrossApproach(piece, roll)) {
+            piece.clearMovementEffects();
+        }
+
         // Entering home straight from standard path (CW pieces only)
         if (isHomeStraightEntry(piece, roll)) {
             if (!canEnterHome(piece)) {
@@ -149,6 +154,18 @@ public class RuleEngine {
 
         result.setValid(true);
         return result;
+    }
+
+    // Fix 26: true when effective roll crosses approach but raw roll alone is used for home straight
+    private boolean willCrossApproach(Piece piece, int roll) {
+        if (piece.getActiveEffect() == PieceEffect.NONE) return false;
+        if (piece.getActiveEffect() == PieceEffect.FROZEN) return false;
+        if (piece.getDirection() == Direction.CCW) return false;
+        if (piece.isInHomeStraight()) return false;
+        int approachCell = board.getApproach(piece.getColour());
+        int distToApproach = (approachCell - piece.getPosition() + GameConstants.BOARD_SIZE)
+                % GameConstants.BOARD_SIZE;
+        return distToApproach > 0 && piece.getEffectiveRoll(roll) >= distToApproach;
     }
 
     // Detects when a CW piece on the standard path will enter the home straight
