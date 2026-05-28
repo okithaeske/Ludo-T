@@ -19,9 +19,12 @@ import player.AbstractPlayer;
 import player.PlayerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class GameEngine {
 
@@ -33,6 +36,7 @@ public class GameEngine {
     private int roundNumber;
     private boolean gameOver;
     private final GameMode gameMode;
+    private final List<AbstractPlayer> finishingOrder = new ArrayList<>();
 
 
     public GameEngine(GameMode gameMode) {
@@ -56,17 +60,7 @@ public class GameEngine {
     }
 
     public void initPlayers() {
-        if (isLudoT()) {
-            initialiseLudoTPlayerState();
-        }
-    }
-
-    private void initialiseLudoTPlayerState() {
-        for (AbstractPlayer player : players) {
-            for (Piece piece : player.getPieces()) {
-                piece.setApproachPassCount(0);
-            }
-        }
+        // approachPassCount is already 0 in Piece constructor — nothing to do
     }
 
     public void determineFirstPlayer() {
@@ -74,19 +68,39 @@ public class GameEngine {
         turnManager.setOrder(firstPlayer);
     }
 
+    // Fix 10: re-roll tied players until one has a strictly higher roll
     private AbstractPlayer rollForFirstPlayer() {
-        AbstractPlayer firstPlayer = players.getFirst();
-        int highestRoll = 0;
+        Map<AbstractPlayer, Integer> rollResults = new LinkedHashMap<>();
         List<Integer> rolls = new ArrayList<>();
+
         for (AbstractPlayer player : players) {
             int roll = turnManager.rollDice();
             rolls.add(roll);
+            rollResults.put(player, roll);
             publisher.publishRoll(player, roll);
-            if (roll > highestRoll) {
-                highestRoll = roll;
-                firstPlayer = player;
-            }
         }
+
+        int highestRoll = Collections.max(rollResults.values());
+        List<AbstractPlayer> tied = rollResults.entrySet().stream()
+                .filter(e -> e.getValue() == highestRoll)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        while (tied.size() > 1) {
+            Map<AbstractPlayer, Integer> tieBreak = new LinkedHashMap<>();
+            for (AbstractPlayer player : tied) {
+                int roll = turnManager.rollDice();
+                tieBreak.put(player, roll);
+                publisher.publishRoll(player, roll);
+            }
+            int maxTie = Collections.max(tieBreak.values());
+            tied = tieBreak.entrySet().stream()
+                    .filter(e -> e.getValue() == maxTie)
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toList());
+        }
+
+        AbstractPlayer firstPlayer = tied.get(0);
         publisher.publishFirstPlayerSelected(firstPlayer, players, rolls);
         return firstPlayer;
     }
@@ -98,21 +112,28 @@ public class GameEngine {
     }
 
     private boolean isGameNotOver() {
-        return gameOver == false;
+        return !gameOver;
     }
 
+    // Fix 22/23: skip finished players, check win per turn, stop round when game over
+    // Fix 11: extra roll loop per player
     public void executeRound() {
         roundNumber++;
         handleMysteryCell();
 
         for (AbstractPlayer player : players) {
-            executeTurn(player);
+            if (finishingOrder.contains(player)) continue;
+            executeTurn(player, false);
+            while (turnManager.isExtraRollPending()) {
+                turnManager.clearExtraRoll();
+                executeTurn(player, true);
+            }
+            turnManager.advanceToNextPlayer();
+            if (checkWinCondition(player)) return;
         }
 
-        // Rule spec §3: publish round-end summary after all players have moved
         publisher.publishRoundSummary(players, board.getMysteryCell());
         publisher.publishRoundComplete();
-        checkWinCondition();
     }
 
     private void handleMysteryCell() {
@@ -125,17 +146,19 @@ public class GameEngine {
         return roundNumber >= GameConstants.MYSTERY_SPAWN_ROUND;
     }
 
+    // Fix 9: pass board to tick() so relocation avoids occupied cells
     private void spawnOrRelocateMysteryCell() {
         if (board.getMysteryCell() == null) {
             board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION));
             board.getMysteryCell().spawn(board);
         } else {
-            board.getMysteryCell().tick();
+            board.getMysteryCell().tick(board);
         }
         publisher.publishMysterySpawn(board.getMysteryPosition());
     }
 
-    private void executeTurn(AbstractPlayer player) {
+    // Fix 17: isExtraRoll controls whether frozen tick fires
+    private void executeTurn(AbstractPlayer player, boolean isExtraRoll) {
         int roll = turnManager.rollDice();
         publisher.publishRoll(player, roll);
 
@@ -148,22 +171,23 @@ public class GameEngine {
             return;
         }
 
-        // Rule T-13 (3.2): frozen piece rolls three 3s consecutively — teleport to base
-        if (isFrozenEscape(player, roll)) {
+        // Fix 8: per-player frozen escape check
+        if (isFrozenEscape(player)) {
             handleFrozenEscape(player);
             return;
         }
 
+        // Fix 17: only decrement frozen counter on the player's first roll, not extra rolls
         if (hasActiveFrozenPiece(player)) {
-            tickFrozenPiece(player);
-            turnManager.nextPlayer();
+            if (!isExtraRoll) {
+                tickFrozenPiece(player);
+            }
             return;
         }
 
         Piece chosenPiece = player.choosePiece(roll, board);
         if (chosenPiece.isNull()) {
             publisher.publishNoValidMove(player);
-            turnManager.nextPlayer();
             return;
         }
 
@@ -175,15 +199,17 @@ public class GameEngine {
             result = ruleEngine.validateMove(chosenPiece, roll);
         }
 
+        // Fix 6: only grant bonus roll when move actually succeeded
         if (result.isValid()) {
             applyMove(chosenPiece, result, player, roll, currentBlock);
+            handleExtraRoll(roll);
         }
-
-        handleExtraRoll(roll);
-        turnManager.nextPlayer();
     }
 
     private Block buildBlockForPiece(Piece piece) {
+        // Pieces at the approach cell must enter the home straight individually
+        if (piece.getPosition() == board.getApproach(piece.getColour())) return null;
+
         List<Piece> sameColorAtPos = new ArrayList<>();
         for (Piece p : board.getPiecesAt(piece.getPosition())) {
             if (p.getColour() == piece.getColour()) {
@@ -218,13 +244,22 @@ public class GameEngine {
                     bp.setPosition(targetCell);
                     board.placePiece(bp, targetCell);
                 }
-                piece.setState(PieceState.ACTIVE);
+                // Fix 15: guard setState — blocks don't teleport to BASE but guard for safety
+                if (result.getTeleportDest() != TeleportDest.BASE) {
+                    piece.setState(PieceState.ACTIVE);
+                }
                 publisher.publishMove(piece, fromCell, targetCell, piece.getDirection());
-                publisher.publishPieceBlockedAtAdjacent(piece, targetCell + 1, targetCell);
+                // Fix 18: block cell is direction-dependent
+                int blockedAt = (piece.getDirection() == Direction.CCW)
+                        ? (targetCell - 1 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE
+                        : targetCell + 1;
+                publisher.publishPieceBlockedAtAdjacent(piece, blockedAt, targetCell);
             } else {
                 // Normal block move or block capture — resolveBlock handles all piece positions
                 BlockMoveResult blockResult = ruleEngine.resolveBlock(currentBlock, roll);
-                piece.setState(PieceState.ACTIVE);
+                if (result.getTeleportDest() != TeleportDest.BASE) {
+                    piece.setState(PieceState.ACTIVE);
+                }
                 if (blockResult.brokeAtApproach()) {
                     publisher.publishBlockBrokenAtApproach(currentBlock, blockResult.getApproachCell());
                     return;
@@ -236,7 +271,11 @@ public class GameEngine {
             board.removePiece(piece, piece.getPosition());
             piece.setPosition(result.getTargetCell());
             board.placePiece(piece, result.getTargetCell());
-            piece.setState(PieceState.ACTIVE);
+
+            // Fix 15: only set ACTIVE if piece is not about to be teleported to BASE
+            if (result.getTeleportDest() != TeleportDest.BASE) {
+                piece.setState(PieceState.ACTIVE);
+            }
 
             // Rule T-1 (3.1): coin toss when piece moves from base to X
             if (fromCell == GameConstants.BASE_POSITION) {
@@ -255,9 +294,12 @@ public class GameEngine {
             trackApproachPass(piece, fromCell, piece.getPosition());
         }
 
-        // Log blocked-at-adjacent event for non-block single pieces
+        // Fix 18: blocked-at-adjacent log for single non-block pieces (direction-aware)
         if (result.isBlockedAtAdjacent() && currentBlock == null) {
-            publisher.publishPieceBlockedAtAdjacent(piece, result.getTargetCell() + 1, result.getTargetCell());
+            int blockedAt = (piece.getDirection() == Direction.CCW)
+                    ? (result.getTargetCell() - 1 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE
+                    : result.getTargetCell() + 1;
+            publisher.publishPieceBlockedAtAdjacent(piece, blockedAt, result.getTargetCell());
         }
 
         // Capture handling
@@ -409,10 +451,19 @@ public class GameEngine {
         }
     }
 
-    public boolean checkWinCondition() {
-        for (AbstractPlayer player : players) {
-            if (player.allHome()) {
-                publisher.publishWin(player);
+    // Fix 22/23: track finishing order; stop when FINISHING_PLAYERS_TO_END have finished
+    public boolean checkWinCondition(AbstractPlayer justMoved) {
+        if (justMoved.allHome() && !finishingOrder.contains(justMoved)) {
+            finishingOrder.add(justMoved);
+            publisher.publishWin(justMoved, finishingOrder.size());
+            if (finishingOrder.size() >= GameConstants.FINISHING_PLAYERS_TO_END) {
+                // Add the remaining player as last place
+                for (AbstractPlayer player : players) {
+                    if (!finishingOrder.contains(player)) {
+                        finishingOrder.add(player);
+                        break;
+                    }
+                }
                 gameOver = true;
                 return true;
             }
@@ -430,8 +481,9 @@ public class GameEngine {
         return false;
     }
 
-    private boolean isFrozenEscape(AbstractPlayer player, int roll) {
-        return hasActiveFrozenPiece(player) && turnManager.isTripleThree();
+    // Fix 8: use per-player triple-three check
+    private boolean isFrozenEscape(AbstractPlayer player) {
+        return hasActiveFrozenPiece(player) && turnManager.isTripleThreeForPlayer(player);
     }
 
     // Rule T-13 (3.2): frozen piece teleported to base after rolling three consecutive 3s
@@ -444,8 +496,7 @@ public class GameEngine {
                 break;
             }
         }
-        turnManager.resetConsecutiveThrees();
-        turnManager.nextPlayer();
+        turnManager.resetConsecutiveThreesForPlayer(player);
     }
 
     private void tickFrozenPiece(AbstractPlayer player) {

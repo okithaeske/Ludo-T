@@ -7,7 +7,7 @@ public class NoPiece extends Piece {
     private static final NoPiece INSTANCE = new NoPiece();
 
     private NoPiece() {
-        super("NONE", Colour.RED);
+        super("NONE", Colour.NONE);
     }
 
     public static NoPiece getInstance() {

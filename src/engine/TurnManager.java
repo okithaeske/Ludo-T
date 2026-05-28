@@ -4,7 +4,9 @@ import model.Dice;
 import model.GameConstants;
 import player.AbstractPlayer;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class TurnManager {
 
@@ -13,7 +15,7 @@ public class TurnManager {
     private int consecutiveSixes;
     private boolean extraRollPending;
     private final Dice dice;
-    private int consecutiveThrees;
+    private final Map<AbstractPlayer, Integer> consecutiveThreesPerPlayer;
 
     public TurnManager(List<AbstractPlayer> players) {
         this.turnOrder = players;
@@ -21,16 +23,16 @@ public class TurnManager {
         this.consecutiveSixes = 0;
         this.extraRollPending = false;
         this.dice = Dice.getInstance();
-        this.consecutiveThrees = 0;
+        this.consecutiveThreesPerPlayer = new HashMap<>();
     }
 
     public int rollDice() {
         int roll = dice.roll();
-        updateConsecutiveRolls(roll);
+        updateConsecutiveRolls(roll, getCurrentPlayer());
         return roll;
     }
 
-    private void updateConsecutiveRolls(int roll) {
+    private void updateConsecutiveRolls(int roll, AbstractPlayer player) {
         if (roll == GameConstants.MAX_DICE_ROLL) {
             consecutiveSixes++;
         } else {
@@ -38,13 +40,20 @@ public class TurnManager {
         }
 
         if (roll == GameConstants.FROZEN_ESCAPE_ROLL) {
-            consecutiveThrees++;
+            consecutiveThreesPerPlayer.merge(player, 1, Integer::sum);
         } else {
-            consecutiveThrees = 0;
+            consecutiveThreesPerPlayer.put(player, 0);
         }
     }
 
+    // Used for extra-roll continuations within the same player's turn (no sixes reset)
     public void nextPlayer() {
+        extraRollPending = false;
+        currentPlayerIndex = (currentPlayerIndex + 1) % turnOrder.size();
+    }
+
+    // Used when genuinely moving to the next player — resets consecutive sixes
+    public void advanceToNextPlayer() {
         extraRollPending = false;
         consecutiveSixes = 0;
         currentPlayerIndex = (currentPlayerIndex + 1) % turnOrder.size();
@@ -54,11 +63,14 @@ public class TurnManager {
         extraRollPending = true;
     }
 
+    public void clearExtraRoll() {
+        extraRollPending = false;
+    }
+
     public void handleTripleSix() {
         if (isTripleSix()) {
             extraRollPending = false;
             consecutiveSixes = 0;
-            nextPlayer();
         }
     }
 
@@ -95,11 +107,11 @@ public class TurnManager {
         return consecutiveSixes;
     }
 
-    public boolean isTripleThree() {
-        return consecutiveThrees >= GameConstants.TRIPLE_THREE;
+    public boolean isTripleThreeForPlayer(AbstractPlayer player) {
+        return consecutiveThreesPerPlayer.getOrDefault(player, 0) >= GameConstants.TRIPLE_THREE;
     }
 
-    public void resetConsecutiveThrees() {
-        consecutiveThrees = 0;
+    public void resetConsecutiveThreesForPlayer(AbstractPlayer player) {
+        consecutiveThreesPerPlayer.put(player, 0);
     }
 }

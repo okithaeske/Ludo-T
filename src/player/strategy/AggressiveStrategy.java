@@ -1,5 +1,6 @@
 package player.strategy;
 
+import enums.Direction;
 import model.Board;
 import model.GameConstants;
 import model.NoPiece;
@@ -52,8 +53,14 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
         int minDistToHome = Integer.MAX_VALUE;
 
         for (Piece piece : player.getPiecesOnBoard()) {
-            int targetCell = (piece.getPosition() + piece.getEffectiveRoll(roll))
-                    % GameConstants.BOARD_SIZE;
+            int targetCell;
+            if (piece.getDirection() == Direction.CCW) {
+                targetCell = (piece.getPosition() - piece.getEffectiveRoll(roll)
+                        + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+            } else {
+                targetCell = (piece.getPosition() + piece.getEffectiveRoll(roll))
+                        % GameConstants.BOARD_SIZE;
+            }
             for (Piece target : board.getPiecesAt(targetCell)) {
                 if (target.getColour() != piece.getColour()) {
                     int dist = board.distanceToHome(target);

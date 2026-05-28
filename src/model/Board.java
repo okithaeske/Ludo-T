@@ -1,6 +1,7 @@
 package model;
 
 import enums.Colour;
+import enums.Direction;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -84,7 +85,18 @@ public class Board {
     }
 
     public int distanceToHome(Piece piece) {
-        return getApproach(piece.getColour()) - piece.getPosition();
+        int approach = getApproach(piece.getColour());
+        int position = piece.getPosition();
+        if (piece.getDirection() == Direction.CW) {
+            return (approach - position + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        }
+        return (position - approach + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+    }
+
+    public String getHomeStraightCellName(Piece piece) {
+        return piece.getColour().name().toLowerCase()
+                + "homepath"
+                + (piece.getHomeStraightPosition() - 1);
     }
 
     public List<Piece> getPiecesAt(int id) {

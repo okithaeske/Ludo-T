@@ -23,7 +23,10 @@ public class Logger implements GameEventListener {
 
     @Override
     public void onMove(Piece piece, int from, int to, Direction direction) {
-        System.out.println(piece.getId() + " moved from " + from + " to " + to + " direction " + direction);
+        String toStr = piece.isInHomeStraight()
+                ? piece.getColour().name().toLowerCase() + "homepath" + (piece.getHomeStraightPosition() - 1)
+                : String.valueOf(to);
+        System.out.println(piece.getId() + " moved from " + from + " to " + toStr + " direction " + direction);
     }
 
     @Override
@@ -32,8 +35,10 @@ public class Logger implements GameEventListener {
     }
 
     @Override
-    public void onWin(AbstractPlayer player) {
-        System.out.println(player.getName() + " wins!");
+    public void onWin(AbstractPlayer player, int place) {
+        String[] ordinals = {"1st", "2nd", "3rd", "4th"};
+        String ordinal = (place >= 1 && place <= 4) ? ordinals[place - 1] : place + "th";
+        System.out.println(player.getName() + " finishes in " + ordinal + " place!");
     }
 
     @Override
@@ -126,6 +131,9 @@ public class Logger implements GameEventListener {
                     location = "Home";
                 } else if (piece.getState() == PieceState.BASE) {
                     location = "Base";
+                } else if (piece.isInHomeStraight()) {
+                    location = piece.getColour().name().toLowerCase()
+                            + "homepath" + (piece.getHomeStraightPosition() - 1);
                 } else {
                     location = "Cell " + piece.getPosition();
                 }

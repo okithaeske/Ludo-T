@@ -1,6 +1,7 @@
 package player;
 
 import enums.Colour;
+import enums.Direction;
 import enums.PieceState;
 import model.Board;
 import model.GameConstants;
@@ -95,7 +96,14 @@ public abstract class AbstractPlayer {
     }
 
     public boolean canCaptureOpponent(Piece piece, int roll, Board board) {
-        int targetCell = piece.getPosition() + piece.getEffectiveRoll(roll);
+        int targetCell;
+        if (piece.getDirection() == Direction.CCW) {
+            targetCell = (piece.getPosition() - piece.getEffectiveRoll(roll)
+                    + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        } else {
+            targetCell = (piece.getPosition() + piece.getEffectiveRoll(roll))
+                    % GameConstants.BOARD_SIZE;
+        }
         return hasOpponentPieceAt(board.getPiecesAt(targetCell));
     }
 

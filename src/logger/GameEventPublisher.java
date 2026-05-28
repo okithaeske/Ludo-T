@@ -45,9 +45,9 @@ public class GameEventPublisher {
         }
     }
 
-    public void publishWin(AbstractPlayer player) {
+    public void publishWin(AbstractPlayer player, int place) {
         for (GameEventListener listener : listeners) {
-            listener.onWin(player);
+            listener.onWin(player, place);
         }
     }
 

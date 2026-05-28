@@ -1,6 +1,7 @@
 package player.strategy;
 
 import enums.Colour;
+import enums.Direction;
 import model.Board;
 import model.GameConstants;
 import model.NoPiece;
@@ -62,7 +63,14 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     }
 
     private boolean pieceCanFormBlock(Piece piece, int roll, Board board) {
-        int targetCell = piece.getPosition() + roll;
+        int targetCell;
+        if (piece.getDirection() == Direction.CCW) {
+            targetCell = (piece.getPosition() - piece.getEffectiveRoll(roll)
+                    + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        } else {
+            targetCell = (piece.getPosition() + piece.getEffectiveRoll(roll))
+                    % GameConstants.BOARD_SIZE;
+        }
         return hasFriendlyPieceAt(board.getPiecesAt(targetCell), piece.getColour());
     }
 

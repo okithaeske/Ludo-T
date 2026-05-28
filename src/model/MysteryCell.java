@@ -44,11 +44,11 @@ public class MysteryCell {
         roundsSinceActive = 0;
     }
 
-    public void tick() {
+    public void tick(Board board) {
         if (active) {
             roundsRemaining--;
             if (roundsRemaining <= 0) {
-                relocate(null);
+                relocate(board);
             }
         } else {
             roundsSinceActive++;
