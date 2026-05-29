@@ -158,4 +158,10 @@ public class GameEventPublisher {
             listener.onBlockCapture(attacker, defender);
         }
     }
+
+    public void publishGameResult(List<AbstractPlayer> finishingOrder) {
+        for (GameEventListener listener : listeners) {
+            listener.onGameResult(finishingOrder);
+        }
+    }
 }

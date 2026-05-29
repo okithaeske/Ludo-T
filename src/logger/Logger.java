@@ -199,4 +199,16 @@ public class Logger implements GameEventListener {
         System.out.println("Block capture: attacker block (size " + attacker.getSize()
                 + ") captured defender block (size " + defender.getSize() + ").");
     }
+
+    @Override
+    public void onGameResult(List<AbstractPlayer> finishingOrder) {
+        String[] ordinals = {"1st", "2nd", "3rd", "4th"};
+        System.out.println("=== Final Standings ===");
+        for (int i = 0; i < finishingOrder.size(); i++) {
+            AbstractPlayer player = finishingOrder.get(i);
+            String place = (i < ordinals.length) ? ordinals[i] : (i + 1) + "th";
+            System.out.println(place + ": " + player.getName());
+        }
+        System.out.println("=======================");
+    }
 }

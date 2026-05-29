@@ -62,4 +62,7 @@ public interface GameEventListener {
 
     // Attacker block captures defender block
     void onBlockCapture(Block attacker, Block defender);
+
+    // Final standings printed once after the game is over
+    void onGameResult(List<AbstractPlayer> finishingOrder);
 }

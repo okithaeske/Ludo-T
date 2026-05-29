@@ -362,7 +362,7 @@ public class RuleEngine {
             }
             if (!breakAtApproach) {
                 board.removePiece(piece, fromPos);
-                piece.setPosition(newPos);
+                piece.moveTo(newPos);
                 board.placePiece(piece, newPos);
             }
         }
@@ -371,7 +371,7 @@ public class RuleEngine {
             List<Piece> blockPieces = new ArrayList<>(block.getPieces());
             for (Piece piece : blockPieces) {
                 board.removePiece(piece, piece.getPosition());
-                piece.setPosition(approachCell);
+                piece.moveTo(approachCell);
                 board.placePiece(piece, approachCell);
                 block.breakBlock(piece);
                 piece.clearMovementEffects();
@@ -405,7 +405,12 @@ public class RuleEngine {
                 .filter(p -> p.getColour() != leadPiece.getColour()).count();
 
         if (opponentCount >= GameConstants.MIN_BLOCK_SIZE) {
-            Block defenderBlock = buildBlockAt(targetCell, leadPiece.getColour());
+            Colour defenderColour = board.getPiecesAt(targetCell).stream()
+                    .filter(p -> p.getColour() != leadPiece.getColour())
+                    .map(Piece::getColour)
+                    .findFirst()
+                    .orElseThrow();
+            Block defenderBlock = board.getBlockAt(targetCell, defenderColour, Direction.CW);
             if (defenderBlock.canBeCaptured(attackerBlock)) {
                 result.setValid(true);
                 result.setBlockCapture(true);
@@ -430,16 +435,6 @@ public class RuleEngine {
 
         result.setValid(true);
         return result;
-    }
-
-    private Block buildBlockAt(int cell, Colour attackerColour) {
-        Block block = new Block(cell, Direction.CW);
-        for (Piece p : board.getPiecesAt(cell)) {
-            if (p.getColour() != attackerColour) {
-                block.addPiece(p);
-            }
-        }
-        return block;
     }
 
     public void applyBlockCapture(Block attacker, Block defender) {

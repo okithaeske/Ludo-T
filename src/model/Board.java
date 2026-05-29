@@ -7,11 +7,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class Board {
 
     private final StandardCell[] cells;
-    private final HomeStraightCell[][] homeStraights;
     private final Map<Colour, Integer> approachCells;
     private final Map<Colour, Integer> startCells;
     private final Map<Integer, List<Piece>> piecePositions;
@@ -19,7 +19,6 @@ public class Board {
 
     public Board() {
         cells = new StandardCell[GameConstants.BOARD_SIZE];
-        homeStraights = new HomeStraightCell[GameConstants.NUM_PLAYERS][GameConstants.HOME_STRAIGHT_SIZE];
         approachCells = new HashMap<>();
         startCells = new HashMap<>();
         piecePositions = new HashMap<>();
@@ -29,21 +28,8 @@ public class Board {
     }
 
     private void initialiseCells() {
-        initialiseStandardCells();
-        initialiseHomeStraightCells();
-    }
-
-    private void initialiseStandardCells() {
         for (int i = 0; i < GameConstants.BOARD_SIZE; i++) {
             cells[i] = new StandardCell(i);
-        }
-    }
-
-    private void initialiseHomeStraightCells() {
-        for (int colour = 0; colour < GameConstants.NUM_PLAYERS; colour++) {
-            for (int cell = 0; cell < GameConstants.HOME_STRAIGHT_SIZE; cell++) {
-                homeStraights[colour][cell] = new HomeStraightCell(cell, Colour.values()[colour]);
-            }
         }
     }
 
@@ -124,5 +110,32 @@ public class Board {
 
     public void setMysteryCell(MysteryCell mysteryCell) {
         this.mysteryCell = mysteryCell;
+    }
+
+    // R3: cell adjacent to `cell` in the direction of travel
+    public int getAdjacentCell(int cell, Direction direction) {
+        if (direction == Direction.CCW) {
+            return (cell - 1 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        }
+        return (cell + 1) % GameConstants.BOARD_SIZE;
+    }
+
+    // R9: project a piece's position forward by `steps` in its direction of travel
+    public int projectPosition(Piece piece, int steps) {
+        if (piece.getDirection() == Direction.CCW) {
+            return (piece.getPosition() - steps + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+        }
+        return (piece.getPosition() + steps) % GameConstants.BOARD_SIZE;
+    }
+
+    // R4: build a block of same-colour pieces at a cell; null if fewer than MIN_BLOCK_SIZE
+    public Block getBlockAt(int cell, Colour colour, Direction direction) {
+        List<Piece> sameColour = getPiecesAt(cell).stream()
+                .filter(p -> p.getColour() == colour)
+                .collect(Collectors.toList());
+        if (sameColour.size() < GameConstants.MIN_BLOCK_SIZE) return null;
+        Block block = new Block(cell, direction);
+        sameColour.forEach(block::addPiece);
+        return block;
     }
 }

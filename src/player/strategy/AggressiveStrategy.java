@@ -1,13 +1,10 @@
 package player.strategy;
 
-import enums.Direction;
 import model.Board;
 import model.GameConstants;
 import model.NoPiece;
 import model.Piece;
 import player.AbstractPlayer;
-
-import java.util.List;
 
 /**
  * Red strategy (spec 2.1.1):
@@ -53,14 +50,7 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
         int minDistToHome = Integer.MAX_VALUE;
 
         for (Piece piece : player.getPiecesOnBoard()) {
-            int targetCell;
-            if (piece.getDirection() == Direction.CCW) {
-                targetCell = (piece.getPosition() - piece.getEffectiveRoll(roll)
-                        + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
-            } else {
-                targetCell = (piece.getPosition() + piece.getEffectiveRoll(roll))
-                        % GameConstants.BOARD_SIZE;
-            }
+            int targetCell = board.projectPosition(piece, piece.getEffectiveRoll(roll));
             for (Piece target : board.getPiecesAt(targetCell)) {
                 if (target.getColour() != piece.getColour()) {
                     int dist = board.distanceToHome(target);
@@ -85,8 +75,7 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
         int minDistWithBlock = Integer.MAX_VALUE;
 
         for (Piece piece : player.getPiecesOnBoard()) {
-            int targetCell = (piece.getPosition() + piece.getEffectiveRoll(roll))
-                    % GameConstants.BOARD_SIZE;
+            int targetCell = board.projectPosition(piece, piece.getEffectiveRoll(roll));
             int dist = board.distanceToHome(piece);
             boolean wouldBlock = hasFriendlyAt(targetCell, board, piece);
 

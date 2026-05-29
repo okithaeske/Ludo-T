@@ -7,7 +7,6 @@ public class Main {
     public static void main(String[] args) {
         GameEngine game = new GameEngineBuilder()
                 .withMode(GameMode.LUDO_T)
-                .withSeed(10)
                 .build();
         game.startGame();
     }

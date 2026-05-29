@@ -32,10 +32,6 @@ public class Piece {
         this.homeStraightPosition = 0;
     }
 
-    public void move(int steps) {
-        position += getEffectiveRoll(steps);
-    }
-
     public void capture() {
         captureCount++;
     }
@@ -84,13 +80,26 @@ public class Piece {
     public int getEffectRoundsLeft() { return effectRoundsLeft; }
     public int getApproachPassCount() { return approachPassCount; }
 
-    public void setPosition(int position) { this.position = position; }
+    // R6: intention-revealing mutation methods
+    public void moveTo(int position) { this.position = position; }
+
+    public void incrementApproachPass() { approachPassCount++; }
+
+    public void tickEffectCountdown() {
+        effectRoundsLeft--;
+        if (effectRoundsLeft <= 0) {
+            activeEffect = PieceEffect.NONE;
+        }
+    }
+
+    public void assignInitialDirection(Direction d) {
+        this.direction = d;
+        this.originalDirection = d;
+    }
+
     public void setState(PieceState state) { this.state = state; }
     public void setDirection(Direction direction) { this.direction = direction; }
     public Direction getOriginalDirection() { return originalDirection; }
-    public void setOriginalDirection(Direction direction) { this.originalDirection = direction; }
-    public void setApproachPassCount(int count) { this.approachPassCount = count; }
-    public void setEffectRoundsLeft(int rounds) { this.effectRoundsLeft = rounds; }
 
     public int getHomeStraightPosition() { return homeStraightPosition; }
     public void setHomeStraightPosition(int pos) { this.homeStraightPosition = pos; }
