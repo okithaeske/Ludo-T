@@ -71,6 +71,16 @@ public class Board {
     }
 
     public int distanceToHome(Piece piece) {
+        if (piece.getState() == enums.PieceState.HOME) {
+            return 0;
+        }
+        if (piece.isInHomeStraight()) {
+            return GameConstants.HOME_EXIT_DISTANCE - piece.getHomeStraightPosition();
+        }
+        if (piece.getPosition() == GameConstants.NO_POSITION) {
+            return Integer.MAX_VALUE;
+        }
+
         int approach = getApproach(piece.getColour());
         int position = piece.getPosition();
         if (piece.getDirection() == Direction.CW) {
@@ -120,10 +130,11 @@ public class Board {
      * @see engine.TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
      */
     public int getAdjacentCell(int cell, Direction direction) {
+        // Cell immediately before the blocking cell from the mover's direction of travel.
         if (direction == Direction.CCW) {
-            return (cell - 1 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+            return (cell + 1) % GameConstants.BOARD_SIZE;
         }
-        return (cell + 1) % GameConstants.BOARD_SIZE;
+        return (cell - 1 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
     }
 
     /**
@@ -139,6 +150,9 @@ public class Board {
      * @see player.AbstractPlayer#canCaptureOpponent(Piece, int, Board)
      */
     public int projectPosition(Piece piece, int steps) {
+        if (piece.isInHomeStraight() || piece.getPosition() == GameConstants.NO_POSITION) {
+            return GameConstants.NO_POSITION;
+        }
         if (piece.getDirection() == Direction.CCW) {
             return (piece.getPosition() - steps + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
         }

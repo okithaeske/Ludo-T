@@ -4,6 +4,7 @@ import model.Dice;
 import model.GameConstants;
 import player.AbstractPlayer;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -114,4 +115,15 @@ public class TurnManager {
     public void resetConsecutiveThreesForPlayer(AbstractPlayer player) {
         consecutiveThreesPerPlayer.put(player, 0);
     }
+
+    public List<AbstractPlayer> getTurnOrder() {
+        return new ArrayList<>(turnOrder);
+    }
+
+    public void resetRollStreaks() {
+        consecutiveSixes = 0;
+        extraRollPending = false;
+        consecutiveThreesPerPlayer.clear();
+    }
 }
+

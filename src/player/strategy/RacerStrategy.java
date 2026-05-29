@@ -40,7 +40,7 @@ public class RacerStrategy implements PieceSelectionStrategy {
     }
 
     private Piece findCaptureablePiece(int roll, Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             // Only consider pieces that still need a capture
             if (piece.getCaptureCount() < GameConstants.MIN_CAPTURES_FOR_HOME
                     && player.canCaptureOpponent(piece, roll, board)) {

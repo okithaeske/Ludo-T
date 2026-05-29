@@ -32,7 +32,7 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
 
         // 2. Roll 6: bring from base only if no piece is already on the standard path
         if (roll == GameConstants.MAX_DICE_ROLL && player.hasPiecesAtBase()) {
-            if (player.getPiecesOnBoard().isEmpty()) {
+            if (player.getMovablePiecesOnBoard().isEmpty()) {
                 return player.getPiecesAtBase().getFirst();
             }
         }
@@ -49,7 +49,7 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
         Piece bestAttacker = NoPiece.getInstance();
         int minDistToHome = Integer.MAX_VALUE;
 
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             int targetCell = board.projectPosition(piece, piece.getEffectiveRoll(roll));
             for (Piece target : board.getPiecesAt(targetCell)) {
                 if (target.getColour() != piece.getColour()) {
@@ -74,7 +74,7 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
         int minDistNoBlock   = Integer.MAX_VALUE;
         int minDistWithBlock = Integer.MAX_VALUE;
 
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             int targetCell = board.projectPosition(piece, piece.getEffectiveRoll(roll));
             int dist = board.distanceToHome(piece);
             boolean wouldBlock = hasFriendlyAt(targetCell, board, piece);

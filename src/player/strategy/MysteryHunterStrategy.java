@@ -103,7 +103,7 @@ public class MysteryHunterStrategy implements PieceSelectionStrategy {
     }
 
     private Piece getNextMovablePiece(Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             if (piece.getPosition() != board.getMysteryPosition()) {
                 return piece;
             }

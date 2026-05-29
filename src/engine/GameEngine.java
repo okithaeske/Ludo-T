@@ -13,14 +13,6 @@ import java.util.List;
 
 /**
  * Facade over the game subsystems.
- *
- * <p>External code calls only {@link #startGame()}; all turn execution, effect handling,
- * win tracking, and rule validation are delegated to the collaborator classes.
- *
- * @see TurnExecutor
- * @see EffectHandler
- * @see WinTracker
- * @see RuleEngine
  */
 public class GameEngine {
 
@@ -32,6 +24,7 @@ public class GameEngine {
     private final TurnExecutor turnExecutor;
     private final WinTracker winTracker;
     private int roundNumber;
+    private int completedRoundsWithStandardPathPieces;
     private final GameMode gameMode;
 
     public GameEngine(GameMode gameMode) {
@@ -43,20 +36,14 @@ public class GameEngine {
         this.ruleEngine = new RuleEngine(board, gameMode);
         this.turnManager = new TurnManager(players);
         this.roundNumber = 0;
+        this.completedRoundsWithStandardPathPieces = 0;
 
-        EffectHandler effectHandler = new EffectHandler(board, turnManager, publisher);
+        EffectHandler effectHandler = new EffectHandler(board, turnManager, publisher, ruleEngine);
         this.winTracker = new WinTracker(players, publisher);
         this.turnExecutor = new TurnExecutor(board, ruleEngine, turnManager, publisher,
                 effectHandler, gameMode);
     }
 
-    /**
-     * Single public entry point. Publishes start events, picks the first player, then
-     * drives the game loop until {@link WinTracker#isGameOver()} is true.
-     *
-     * @see #runGameLoop()
-     * @see #determineFirstPlayer()
-     */
     public void startGame() {
         publisher.publishGameStart();
         publisher.publishGameInitialisation(players);
@@ -64,24 +51,14 @@ public class GameEngine {
         runGameLoop();
     }
 
-    /**
-     * Rolls dice for all players (with tie-breaking) and sets the resulting turn order.
-     *
-     * @see FirstPlayerSelector#selectFirstPlayer()
-     * @see TurnManager#setOrder(player.AbstractPlayer)
-     */
     public void determineFirstPlayer() {
         FirstPlayerSelector selector = new FirstPlayerSelector(players, turnManager, publisher);
         AbstractPlayer firstPlayer = selector.selectFirstPlayer();
         turnManager.setOrder(firstPlayer);
+        turnManager.resetRollStreaks(); // selection rolls must not affect real game streaks
+        publisher.publishFirstPlayerSelected(firstPlayer, turnManager.getTurnOrder(), List.of());
     }
 
-    /**
-     * Iterates {@link #executeRound()} until the game is over, then publishes final standings.
-     *
-     * @see #executeRound()
-     * @see WinTracker#isGameOver()
-     */
     public void runGameLoop() {
         while (!winTracker.isGameOver()) {
             executeRound();
@@ -89,19 +66,12 @@ public class GameEngine {
         publisher.publishGameResult(winTracker.getFinishingOrder());
     }
 
-    /**
-     * Runs one full round: mystery-cell tick, then one turn per still-active player
-     * (including extra-roll continuations). Returns early if the game ends mid-round.
-     *
-     * @see TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
-     * @see WinTracker#checkWinCondition(player.AbstractPlayer)
-     */
     public void executeRound() {
         roundNumber++;
-        handleMysteryCell();
 
-        for (AbstractPlayer player : players) {
+        for (AbstractPlayer player : turnManager.getTurnOrder()) {
             if (winTracker.getFinishingOrder().contains(player)) continue;
+
             turnExecutor.executeTurn(player, false);
             while (turnManager.isExtraRollPending()) {
                 turnManager.clearExtraRoll();
@@ -111,29 +81,45 @@ public class GameEngine {
             if (winTracker.checkWinCondition(player)) return;
         }
 
+        updateMysteryCellAfterCompletedRound();
         publisher.publishRoundSummary(players, board.getMysteryCell());
         publisher.publishRoundComplete();
     }
 
-    private void handleMysteryCell() {
-        if (isLudoT() && isMysterySpawnRound()) {
-            spawnOrRelocateMysteryCell();
+    private void updateMysteryCellAfterCompletedRound() {
+        if (!isLudoT()) return;
+
+        MysteryCell mysteryCell = board.getMysteryCell();
+        if (mysteryCell != null && mysteryCell.isActive()) {
+            boolean relocated = mysteryCell.tick(board);
+            if (relocated && mysteryCell.isActive()) {
+                publisher.publishMysterySpawn(mysteryCell.getPosition());
+            }
+            return;
+        }
+
+        if (hasAnyPieceOnStandardPath()) {
+            completedRoundsWithStandardPathPieces++;
+        }
+
+        if (completedRoundsWithStandardPathPieces >= GameConstants.MYSTERY_SPAWN_ROUND) {
+            if (board.getMysteryCell() == null) {
+                board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION));
+            }
+            boolean spawned = board.getMysteryCell().spawn(board);
+            if (spawned) {
+                publisher.publishMysterySpawn(board.getMysteryPosition());
+            }
         }
     }
 
-    private boolean isMysterySpawnRound() {
-        return roundNumber >= GameConstants.MYSTERY_SPAWN_ROUND;
-    }
-
-    // Fix 9: pass board to tick() so relocation avoids occupied cells
-    private void spawnOrRelocateMysteryCell() {
-        if (board.getMysteryCell() == null) {
-            board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION));
-            board.getMysteryCell().spawn(board);
-        } else {
-            board.getMysteryCell().tick(board);
+    private boolean hasAnyPieceOnStandardPath() {
+        for (int i = 0; i < GameConstants.BOARD_SIZE; i++) {
+            if (board.isOccupied(i)) {
+                return true;
+            }
         }
-        publisher.publishMysterySpawn(board.getMysteryPosition());
+        return false;
     }
 
     public boolean isLudoT() {

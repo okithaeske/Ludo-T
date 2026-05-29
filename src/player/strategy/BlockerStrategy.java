@@ -53,7 +53,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     }
 
     private boolean canFormBlock(int roll, Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             if (pieceCanFormBlock(piece, roll, board)) {
                 return true;
             }
@@ -76,7 +76,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     }
 
     private Piece getPieceToFormBlock(int roll, Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             if (pieceCanFormBlock(piece, roll, board)) {
                 return piece;
             }
@@ -85,7 +85,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     }
 
     private boolean hasBlockOnBoard(Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             if (board.getPiecesAt(piece.getPosition()).size() >= GameConstants.MIN_BLOCK_SIZE) {
                 return true;
             }
@@ -99,7 +99,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
      */
     private boolean canPieceAheadOfBlockMove(int roll, Board board) {
         int blockDist = getBlockDistanceToHome(board);
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             // Skip pieces that are part of the block
             if (board.getPiecesAt(piece.getPosition()).size() >= GameConstants.MIN_BLOCK_SIZE) {
                 continue;
@@ -114,7 +114,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     }
 
     private int getBlockDistanceToHome(Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             if (board.getPiecesAt(piece.getPosition()).size() >= GameConstants.MIN_BLOCK_SIZE) {
                 return board.distanceToHome(piece);
             }
@@ -123,7 +123,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     }
 
     private Piece getBlockPiece(Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             if (board.getPiecesAt(piece.getPosition()).size() >= GameConstants.MIN_BLOCK_SIZE) {
                 return piece;
             }
@@ -133,7 +133,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
 
     // Only seek captures for pieces that still need them to qualify for home entry
     private Piece findCaptureForHome(int roll, Board board) {
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             if (piece.getCaptureCount() >= GameConstants.MIN_CAPTURES_FOR_HOME) {
                 continue;
             }
@@ -147,7 +147,7 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     private Piece avoidCapture(Board board) {
         Piece leastAdvanced = NoPiece.getInstance();
         int maxDistanceToHome = 0;
-        for (Piece piece : player.getPiecesOnBoard()) {
+        for (Piece piece : player.getMovablePiecesOnBoard()) {
             int distance = board.distanceToHome(piece);
             if (distance > maxDistanceToHome) {
                 maxDistanceToHome = distance;

@@ -8,51 +8,45 @@ public class MysteryCell {
     private int roundsRemaining;
     private int lastPosition;
     private boolean active;
-    private int roundsSinceActive;
 
     public MysteryCell(int position) {
         this.position = position;
         this.roundsRemaining = GameConstants.MYSTERY_CELL_DURATION;
-        this.lastPosition = GameConstants.BASE_POSITION;
+        this.lastPosition = GameConstants.NO_POSITION;
         this.active = false;
-        this.roundsSinceActive = 0;
     }
 
-    // Rule T-10: only spawn when at least one piece is on the standard path
-    public void spawn(Board board) {
-        // Only spawn if there is at least one piece on the standard path (cells 0–51)
-        boolean piecesOnPath = false;
-        for (int i = 0; i < GameConstants.BOARD_SIZE; i++) {
-            if (board.isOccupied(i)) {
-                piecesOnPath = true;
-                break;
-            }
+    /**
+     * Spawns only on an empty standard-path cell. Returns true only when a cell was spawned.
+     */
+    public boolean spawn(Board board) {
+        if (!hasAnyPieceOnStandardPath(board)) {
+            return false;
         }
-        if (!piecesOnPath) {
-            return;
+        int newPosition = findEmptyMysteryPosition(board);
+        if (newPosition == GameConstants.NO_POSITION) {
+            return false;
         }
-
-        int newPosition;
-        do {
-            newPosition = RandomInitiator.getInstance().nextInt(GameConstants.BOARD_SIZE);
-        } while (newPosition == lastPosition || board.isOccupied(newPosition));
-
         position = newPosition;
         lastPosition = newPosition;
         roundsRemaining = GameConstants.MYSTERY_CELL_DURATION;
         active = true;
-        roundsSinceActive = 0;
+        return true;
     }
 
-    public void tick(Board board) {
-        if (active) {
-            roundsRemaining--;
-            if (roundsRemaining <= 0) {
-                relocate(board);
-            }
-        } else {
-            roundsSinceActive++;
+    /**
+     * Ticks one completed round. Returns true when the mystery cell relocated.
+     */
+    public boolean tick(Board board) {
+        if (!active) {
+            return false;
         }
+        roundsRemaining--;
+        if (roundsRemaining <= 0) {
+            relocate(board);
+            return true;
+        }
+        return false;
     }
 
     public boolean isActive() {
@@ -60,7 +54,7 @@ public class MysteryCell {
     }
 
     public int getPosition() {
-        return position;
+        return active ? position : GameConstants.NO_POSITION;
     }
 
     public int getRoundsRemaining() {
@@ -72,22 +66,41 @@ public class MysteryCell {
         return destinations[RandomInitiator.getInstance().nextInt(destinations.length)];
     }
 
-    // Rule T-10: relocate must set active=true and avoid occupied cells
+    /** Relocates to an empty standard-path cell and never repeats the previous location. */
     public void relocate(Board board) {
-        int newPosition;
-        if (board != null) {
-            do {
-                newPosition = RandomInitiator.getInstance().nextInt(GameConstants.BOARD_SIZE);
-            } while (newPosition == lastPosition || board.isOccupied(newPosition));
-        } else {
-            do {
-                newPosition = RandomInitiator.getInstance().nextInt(GameConstants.BOARD_SIZE);
-            } while (newPosition == lastPosition);
+        int newPosition = findEmptyMysteryPosition(board);
+        if (newPosition == GameConstants.NO_POSITION) {
+            active = false;
+            position = GameConstants.NO_POSITION;
+            return;
         }
-
         lastPosition = position;
         position = newPosition;
         roundsRemaining = GameConstants.MYSTERY_CELL_DURATION;
-        active = true;  // Bug 2.1 fix: was missing
+        active = true;
+    }
+
+    private int findEmptyMysteryPosition(Board board) {
+        for (int attempts = 0; attempts < GameConstants.BOARD_SIZE * 3; attempts++) {
+            int candidate = RandomInitiator.getInstance().nextInt(GameConstants.BOARD_SIZE);
+            if (candidate != lastPosition && !board.isOccupied(candidate)) {
+                return candidate;
+            }
+        }
+        for (int candidate = 0; candidate < GameConstants.BOARD_SIZE; candidate++) {
+            if (candidate != lastPosition && !board.isOccupied(candidate)) {
+                return candidate;
+            }
+        }
+        return GameConstants.NO_POSITION;
+    }
+
+    private boolean hasAnyPieceOnStandardPath(Board board) {
+        for (int i = 0; i < GameConstants.BOARD_SIZE; i++) {
+            if (board.isOccupied(i)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

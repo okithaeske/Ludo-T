@@ -26,17 +26,22 @@ public class GameConstants {
     public static final int CONSECUTIVE_THREES_TO_ESCAPE = 3;
     public static final int ESCAPE_ROLL_VALUE = 3;
 
-    // Start cells
-    public static final int RED_START = 0;
-    public static final int GREEN_START = 13;
-    public static final int YELLOW_START = 26;
-    public static final int BLUE_START = 39;
+    /*
+     * Assignment legend: global path numbering starts at the Yellow X square (0)
+     * and continues clockwise around the 52 standard cells.
+     * From the board layout, the clockwise order of starting X cells is:
+     * Yellow -> Blue -> Red -> Green.
+     */
+    public static final int YELLOW_START = 0;
+    public static final int BLUE_START = 13;
+    public static final int RED_START = 26;
+    public static final int GREEN_START = 39;
 
-    // Approach cells
-    public static final int RED_APPROACH = 50;
-    public static final int GREEN_APPROACH = 11;
-    public static final int YELLOW_APPROACH = 24;
-    public static final int BLUE_APPROACH = 37;
+    // Each colour's approach cell is two cells before its X in clockwise numbering.
+    public static final int YELLOW_APPROACH = 50;
+    public static final int BLUE_APPROACH = 11;
+    public static final int RED_APPROACH = 24;
+    public static final int GREEN_APPROACH = 37;
 
     // Block
     public static final int MIN_BLOCK_SIZE = 2;
@@ -44,21 +49,29 @@ public class GameConstants {
     // Capture
     public static final int MIN_CAPTURES_FOR_HOME = 1;
 
-    // Rounds
+    // Mystery cells
     public static final int MYSTERY_SPAWN_ROUND = 2;
 
+    /*
+     * T-11: Alpha/Beta/Gamma are the 9th, 27th and 46th cells from the Yellow
+     * approach cell, where the Yellow approach cell itself is counted as 0.
+     */
+    public static final int ALPHA_CELL = (YELLOW_APPROACH + 9) % BOARD_SIZE;   // 7
+    public static final int BETA_CELL = (YELLOW_APPROACH + 27) % BOARD_SIZE;   // 25
+    public static final int GAMMA_CELL = (YELLOW_APPROACH + 46) % BOARD_SIZE;  // 44
 
-    // Mystery Cells
-    public static final int ALPHA_CELL = 9;
-    public static final int BETA_CELL = 27;
-    public static final int GAMMA_CELL = 46;
     public static final int FROZEN_ESCAPE_ROLL = 3;
     public static final int TRIPLE_THREE = 3;
 
-    // T-1: CCW approach passes required for home entry
+    // T-1: CCW approach passes required for home-straight entry
     public static final int APPROACH_PASS_REQUIRED_CCW = 2;
+
+    // To move from the first home-straight cell through 5 cells and then Home.
+    public static final int HOME_EXIT_DISTANCE = HOME_STRAIGHT_SIZE + 1;
+
     // Game ends when this many players have finished (4th place is implicit)
     public static final int FINISHING_PLAYERS_TO_END = NUM_PLAYERS - 1;
+
     // T-6: forced block-break move distance on triple six
     public static final int TRIPLE_SIX_BLOCKADE_MOVE = 6;
 }

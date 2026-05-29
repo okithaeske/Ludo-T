@@ -55,11 +55,15 @@ public class Piece {
 
     public int getEffectiveRoll(int roll) {
         if (activeEffect == PieceEffect.ENERGISED) {
-            return roll * 2;
+            return roll * GameConstants.ENERGISED_MULTIPLIER;
         } else if (activeEffect == PieceEffect.SICK) {
-            return roll / 2;
+            return roll / GameConstants.SICK_DIVISOR;
         }
         return roll;
+    }
+
+    public boolean isMovementRestricted() {
+        return activeEffect == PieceEffect.FROZEN && effectRoundsLeft > 0;
     }
 
     public boolean isNull() {
@@ -102,9 +106,13 @@ public class Piece {
      * @see engine.EffectHandler#tickFrozenPiece(player.AbstractPlayer)
      */
     public void tickEffectCountdown() {
+        if (activeEffect == PieceEffect.NONE || effectRoundsLeft <= 0) {
+            return;
+        }
         effectRoundsLeft--;
         if (effectRoundsLeft <= 0) {
             activeEffect = PieceEffect.NONE;
+            effectRoundsLeft = 0;
         }
     }
 
@@ -127,6 +135,12 @@ public class Piece {
     public void setHomeStraightPosition(int pos) { this.homeStraightPosition = pos; }
 
     public boolean isInHomeStraight() { return homeStraightPosition > 0; }
+
+    public void leaveStandardPathForHomeStraight(int homeStraightPosition) {
+        this.position = GameConstants.NO_POSITION;
+        this.homeStraightPosition = homeStraightPosition;
+        this.state = PieceState.ACTIVE;
+    }
 
     public void clearMovementEffects() {
         if (activeEffect == PieceEffect.ENERGISED || activeEffect == PieceEffect.SICK) {

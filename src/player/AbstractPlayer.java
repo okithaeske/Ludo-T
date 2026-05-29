@@ -50,8 +50,17 @@ public abstract class AbstractPlayer {
         }
     }
 
-    public Piece choosePiece(int roll, Board board){
-        return strategy.choosePiece(roll,board);
+    public Piece choosePiece(int roll, Board board) {
+        Piece selected = strategy.choosePiece(roll, board);
+        if (selected.isNull() || !selected.isMovementRestricted()) {
+            return selected;
+        }
+        // A frozen piece cannot move; fall back to any movable active piece instead of
+        // incorrectly skipping the whole player's turn.
+        for (Piece piece : getMovablePiecesOnBoard()) {
+            return piece;
+        }
+        return NoPiece.getInstance();
     }
 
     public List<Piece> getPiecesOnBoard() {
@@ -62,6 +71,16 @@ public abstract class AbstractPlayer {
             }
         }
         return onBoard;
+    }
+
+    public List<Piece> getMovablePiecesOnBoard() {
+        List<Piece> movable = new ArrayList<>();
+        for (Piece piece : pieces) {
+            if (piece.getState() == PieceState.ACTIVE && !piece.isMovementRestricted()) {
+                movable.add(piece);
+            }
+        }
+        return movable;
     }
 
     public List<Piece> getPiecesAtBase() {
@@ -86,7 +105,7 @@ public abstract class AbstractPlayer {
     public Piece getPieceClosestToHome(Board board) {
         Piece closest = NoPiece.getInstance();
         int minDistance = Integer.MAX_VALUE;
-        for (Piece piece : getPiecesOnBoard()) {
+        for (Piece piece : getMovablePiecesOnBoard()) {
             int distance = board.distanceToHome(piece);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -110,7 +129,13 @@ public abstract class AbstractPlayer {
     }
 
     public boolean canCaptureOpponent(Piece piece, int roll, Board board) {
+        if (piece.isMovementRestricted() || piece.isInHomeStraight()) {
+            return false;
+        }
         int targetCell = board.projectPosition(piece, piece.getEffectiveRoll(roll));
+        if (targetCell == GameConstants.NO_POSITION) {
+            return false;
+        }
         return hasOpponentPieceAt(board.getPiecesAt(targetCell));
     }
 
