@@ -80,11 +80,27 @@ public class Piece {
     public int getEffectRoundsLeft() { return effectRoundsLeft; }
     public int getApproachPassCount() { return approachPassCount; }
 
-    // R6: intention-revealing mutation methods
+    /**
+     * Moves this piece to {@code position} on the standard board.
+     * All board-position mutations go through this method.
+     *
+     * @see engine.TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     */
     public void moveTo(int position) { this.position = position; }
 
+    /**
+     * Increments the CCW approach-pass counter used to gate home entry (Rule T-1 §4.2).
+     *
+     * @see engine.TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     */
     public void incrementApproachPass() { approachPassCount++; }
 
+    /**
+     * Decrements the active-effect countdown by one round. Clears the effect when the
+     * counter reaches zero.
+     *
+     * @see engine.EffectHandler#tickFrozenPiece(player.AbstractPlayer)
+     */
     public void tickEffectCountdown() {
         effectRoundsLeft--;
         if (effectRoundsLeft <= 0) {
@@ -92,6 +108,12 @@ public class Piece {
         }
     }
 
+    /**
+     * Sets both {@code direction} and {@code originalDirection} to {@code d}. Called once
+     * per piece when it first leaves base (coin toss — Rule T-1 §3.1).
+     *
+     * @see engine.EffectHandler#performCoinToss(Piece)
+     */
     public void assignInitialDirection(Direction d) {
         this.direction = d;
         this.originalDirection = d;

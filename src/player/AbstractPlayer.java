@@ -11,6 +11,21 @@ import player.strategy.PieceSelectionStrategy;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * <b>Template Method</b> — defines the complete structure of a Ludo player: piece
+ * ownership, lifecycle queries ({@link #getPiecesOnBoard()}, {@link #getPiecesAtBase()},
+ * {@link #allHome()}), and board helpers ({@link #getPieceClosestToHome(model.Board)},
+ * {@link #canCaptureOpponent(model.Piece, int, model.Board)}). Concrete subclasses
+ * ({@code RedPlayer}, {@code GreenPlayer}, {@code YellowPlayer}, {@code BluePlayer})
+ * supply only colour and name to the super-constructor; all behaviour is inherited.
+ *
+ * <p>Piece <em>selection</em> is handled by the injected
+ * {@link player.strategy.PieceSelectionStrategy} (Strategy pattern), keeping player
+ * subclasses trivially thin.
+ *
+ * @see player.strategy.PieceSelectionStrategy
+ * @see player.PlayerFactory
+ */
 public abstract class AbstractPlayer {
 
     protected Colour colour;

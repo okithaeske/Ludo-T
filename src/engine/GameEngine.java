@@ -11,6 +11,17 @@ import player.PlayerFactory;
 
 import java.util.List;
 
+/**
+ * Facade over the game subsystems.
+ *
+ * <p>External code calls only {@link #startGame()}; all turn execution, effect handling,
+ * win tracking, and rule validation are delegated to the collaborator classes.
+ *
+ * @see TurnExecutor
+ * @see EffectHandler
+ * @see WinTracker
+ * @see RuleEngine
+ */
 public class GameEngine {
 
     private final Board board;
@@ -39,6 +50,13 @@ public class GameEngine {
                 effectHandler, gameMode);
     }
 
+    /**
+     * Single public entry point. Publishes start events, picks the first player, then
+     * drives the game loop until {@link WinTracker#isGameOver()} is true.
+     *
+     * @see #runGameLoop()
+     * @see #determineFirstPlayer()
+     */
     public void startGame() {
         publisher.publishGameStart();
         publisher.publishGameInitialisation(players);
@@ -46,12 +64,24 @@ public class GameEngine {
         runGameLoop();
     }
 
+    /**
+     * Rolls dice for all players (with tie-breaking) and sets the resulting turn order.
+     *
+     * @see FirstPlayerSelector#selectFirstPlayer()
+     * @see TurnManager#setOrder(player.AbstractPlayer)
+     */
     public void determineFirstPlayer() {
         FirstPlayerSelector selector = new FirstPlayerSelector(players, turnManager, publisher);
         AbstractPlayer firstPlayer = selector.selectFirstPlayer();
         turnManager.setOrder(firstPlayer);
     }
 
+    /**
+     * Iterates {@link #executeRound()} until the game is over, then publishes final standings.
+     *
+     * @see #executeRound()
+     * @see WinTracker#isGameOver()
+     */
     public void runGameLoop() {
         while (!winTracker.isGameOver()) {
             executeRound();
@@ -59,8 +89,13 @@ public class GameEngine {
         publisher.publishGameResult(winTracker.getFinishingOrder());
     }
 
-    // Fix 22/23: skip finished players, check win per turn, stop round when game over
-    // Fix 11: extra roll loop per player
+    /**
+     * Runs one full round: mystery-cell tick, then one turn per still-active player
+     * (including extra-roll continuations). Returns early if the game ends mid-round.
+     *
+     * @see TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     * @see WinTracker#checkWinCondition(player.AbstractPlayer)
+     */
     public void executeRound() {
         roundNumber++;
         handleMysteryCell();

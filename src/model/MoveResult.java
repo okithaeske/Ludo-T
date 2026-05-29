@@ -2,6 +2,15 @@ package model;
 
 import enums.TeleportDest;
 
+/**
+ * <b>DTO</b> — carries the result of a single move validation from {@link engine.RuleEngine}
+ * to {@link engine.TurnExecutor}. Contains no behaviour; all fields are set by
+ * {@code RuleEngine} and read by {@code TurnExecutor} to decide how to update the board.
+ *
+ * @see engine.RuleEngine#validateMove(Piece, int)
+ * @see engine.RuleEngine#validateBlockMove(model.Block, int)
+ * @see engine.TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+ */
 public class MoveResult {
 
     private boolean valid;

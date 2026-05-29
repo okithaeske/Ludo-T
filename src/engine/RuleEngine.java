@@ -15,6 +15,16 @@ import model.Piece;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Stateless move validation and block resolution.
+ *
+ * <p>All public methods return value objects ({@link model.MoveResult},
+ * {@link model.BlockMoveResult}) that {@link TurnExecutor} reads to apply the move.
+ * No board state is mutated here except inside {@link #resolveBlock} and
+ * {@link #applyBlockCapture}.
+ *
+ * @see TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+ */
 public class RuleEngine {
 
     private final Board board;
@@ -25,6 +35,15 @@ public class RuleEngine {
         this.mode = mode;
     }
 
+    /**
+     * Validates a move for a single (non-block) piece and returns a populated
+     * {@link model.MoveResult}. Covers base exit, home-straight entry, CCW home entry,
+     * opponent-block stopping, same-colour blocking, captures, and mystery-cell teleport.
+     *
+     * @see TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     * @see #validateBlockMove(model.Block, int)
+     * @see #canEnterHome(model.Piece)
+     */
     public MoveResult validateMove(Piece piece, int roll) {
         MoveResult result = new MoveResult();
 
@@ -322,6 +341,12 @@ public class RuleEngine {
         return target.getColour() != piece.getColour();
     }
 
+    /**
+     * Returns {@code true} if {@code piece} is eligible to enter the home straight.
+     * In Ludo-T, the piece must have at least one capture; in Classic mode always true.
+     *
+     * @see #validateMove(model.Piece, int)
+     */
     public boolean canEnterHome(Piece piece) {
         if (isLudoT()) {
             return hasRequiredCaptures(piece);
@@ -340,7 +365,17 @@ public class RuleEngine {
         return targetCell == board.getMysteryPosition();
     }
 
-    // Rule T-4: block movement bypasses getEffectiveRoll; breaks at approach cell if reached
+    /**
+     * Moves all pieces in a block by {@code roll / blockSize} steps. If the block reaches
+     * the approach cell it auto-breaks: all pieces land on the approach cell and their
+     * movement effects are cleared. Returns a {@link model.BlockMoveResult} that indicates
+     * whether a break occurred.
+     *
+     * <p>Rule T-4: block movement bypasses {@code getEffectiveRoll}; steps are raw.
+     *
+     * @see TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     * @see #validateBlockMove(model.Block, int)
+     */
     public BlockMoveResult resolveBlock(Block block, int roll) {
         int steps = roll / block.getSize();
         Direction dir = block.getDirectionForMove();
@@ -385,7 +420,15 @@ public class RuleEngine {
         return new BlockMoveResult(false, -1);
     }
 
-    // Fix 4: block-on-block and block-captures-single validation
+    /**
+     * Validates a move where the chosen piece is part of a block. Handles three outcomes:
+     * block-captures-block (attacker larger), attacker stops at adjacent cell (attacker
+     * smaller), or block captures a single opponent piece.
+     *
+     * @see TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     * @see #resolveBlock(model.Block, int)
+     * @see model.Board#getBlockAt(int, enums.Colour, enums.Direction)
+     */
     public MoveResult validateBlockMove(Block attackerBlock, int roll) {
         MoveResult result = new MoveResult();
         int steps = roll / attackerBlock.getSize();

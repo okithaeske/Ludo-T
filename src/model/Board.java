@@ -112,7 +112,13 @@ public class Board {
         this.mysteryCell = mysteryCell;
     }
 
-    // R3: cell adjacent to `cell` in the direction of travel
+    /**
+     * Returns the cell immediately adjacent to {@code cell} in the given direction of travel.
+     * Used by {@link engine.TurnExecutor} to compute the "blocked-at" logging cell when a
+     * piece or block is stopped one cell before an opponent blockade.
+     *
+     * @see engine.TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     */
     public int getAdjacentCell(int cell, Direction direction) {
         if (direction == Direction.CCW) {
             return (cell - 1 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
@@ -120,7 +126,18 @@ public class Board {
         return (cell + 1) % GameConstants.BOARD_SIZE;
     }
 
-    // R9: project a piece's position forward by `steps` in its direction of travel
+    /**
+     * Projects {@code piece}'s current position forward by {@code steps} cells in its
+     * direction of travel, wrapping around the board. Pass
+     * {@link Piece#getEffectiveRoll(int) piece.getEffectiveRoll(roll)} for {@code steps} to
+     * honour ENERGISED / SICK effects.
+     *
+     * <p>Replaces the duplicated direction-aware target-cell arithmetic that previously
+     * appeared in {@link player.AbstractPlayer}, {@link player.strategy.AggressiveStrategy},
+     * and {@link player.strategy.BlockerStrategy}.
+     *
+     * @see player.AbstractPlayer#canCaptureOpponent(Piece, int, Board)
+     */
     public int projectPosition(Piece piece, int steps) {
         if (piece.getDirection() == Direction.CCW) {
             return (piece.getPosition() - steps + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
@@ -128,7 +145,14 @@ public class Board {
         return (piece.getPosition() + steps) % GameConstants.BOARD_SIZE;
     }
 
-    // R4: build a block of same-colour pieces at a cell; null if fewer than MIN_BLOCK_SIZE
+    /**
+     * Builds a {@link Block} from all same-colour pieces at {@code cell}. Returns
+     * {@code null} when fewer than {@link GameConstants#MIN_BLOCK_SIZE} such pieces exist,
+     * which signals to {@link engine.TurnExecutor} that no block is present.
+     *
+     * @see engine.TurnExecutor#executeTurn(player.AbstractPlayer, boolean)
+     * @see engine.RuleEngine#validateBlockMove(Block, int)
+     */
     public Block getBlockAt(int cell, Colour colour, Direction direction) {
         List<Piece> sameColour = getPiecesAt(cell).stream()
                 .filter(p -> p.getColour() == colour)
