@@ -70,6 +70,10 @@ public class Piece {
         return false;
     }
 
+    public boolean isAtBase() {
+        return state == PieceState.BASE;
+    }
+
     public boolean canEnterHomeStraight() {
         return captureCount >= 1;
     }

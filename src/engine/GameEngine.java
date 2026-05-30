@@ -70,7 +70,10 @@ public class GameEngine {
         roundNumber++;
 
         for (AbstractPlayer player : turnManager.getTurnOrder()) {
-            if (winTracker.getFinishingOrder().contains(player)) continue;
+            if (winTracker.getFinishingOrder().contains(player)) {
+                turnManager.advanceToNextPlayer();
+                continue;
+            }
 
             turnExecutor.executeTurn(player, false);
             while (turnManager.isExtraRollPending()) {

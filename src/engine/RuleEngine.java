@@ -131,6 +131,7 @@ public class RuleEngine {
         }
 
         if (!canEnterHome(piece)) {
+            // Cannot enter home straight yet; continue on the standard board for another lap
             return null;
         }
 

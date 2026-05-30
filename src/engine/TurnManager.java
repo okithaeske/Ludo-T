@@ -33,6 +33,12 @@ public class TurnManager {
         return roll;
     }
 
+    public int rollDice(AbstractPlayer player) {
+        int roll = dice.roll();
+        updateConsecutiveRolls(roll, player);
+        return roll;
+    }
+
     private void updateConsecutiveRolls(int roll, AbstractPlayer player) {
         if (roll == GameConstants.MAX_DICE_ROLL) {
             consecutiveSixes++;
