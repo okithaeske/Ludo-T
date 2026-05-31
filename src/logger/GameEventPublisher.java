@@ -44,6 +44,10 @@ public class GameEventPublisher {
         for (GameEventListener l : listeners) l.onCapture(attacker, victim);
     }
 
+    public void publishCapturedPlayerStatus(AbstractPlayer player) {
+        for (GameEventListener l : listeners) l.onCapturedPlayerStatus(player);
+    }
+
     public void publishWin(AbstractPlayer player, int place) {
         for (GameEventListener l : listeners) l.onWin(player, place);
     }

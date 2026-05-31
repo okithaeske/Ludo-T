@@ -26,9 +26,12 @@ public class BlockerStrategy implements PieceSelectionStrategy {
 
     @Override
     public Piece choosePiece(int roll, Board board) {
-        // Roll 6: bring base piece — prioritise if it would form a block at X
+        // Roll 6: bring from base UNLESS moving 6 with an existing piece forms a block (spec §2.1.2)
         if (roll == GameConstants.MAX_DICE_ROLL && player.hasPiecesAtBase()) {
-            return player.getPiecesAtBase().getFirst();
+            if (!canFormBlock(roll, board)) {
+                return player.getPiecesAtBase().getFirst();
+            }
+            // canFormBlock == true → fall through to the block-formation logic below
         }
 
         // Form a block with board pieces if possible (only if block-moving is NOT preferred below)

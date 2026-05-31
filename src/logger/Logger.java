@@ -202,6 +202,13 @@ public class Logger implements GameEventListener {
                 + ", and returns it to the base.");
     }
 
+    @Override
+    public void onCapturedPlayerStatus(AbstractPlayer player) {
+        log(colour(player) + " player now has " + player.getPiecesOnBoard().size()
+                + "/4 on pieces on the board and " + player.getPiecesAtBase().size()
+                + "/4 pieces on the base.");
+    }
+
     // ── Mystery cell & teleport ───────────────────────────────────────────────
 
     @Override

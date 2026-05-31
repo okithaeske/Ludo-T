@@ -49,10 +49,10 @@ public class GameEngine {
         this.roundNumber = 0;
         this.completedRoundsWithStandardPathPieces = 0;
 
-        EffectHandler effectHandler = new EffectHandler(board, turnManager, publisher, ruleEngine);
+        EffectHandler effectHandler = new EffectHandler(board, turnManager, publisher, ruleEngine, players);
         this.winTracker = new WinTracker(players, publisher);
         this.turnExecutor = new TurnExecutor(board, ruleEngine, turnManager, publisher,
-                effectHandler, gameMode);
+                effectHandler, gameMode, players);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────

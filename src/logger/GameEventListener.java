@@ -35,6 +35,9 @@ public interface GameEventListener {
     /** "[colour] piece [name] lands on square L1, captures [colour] piece [name], and returns it to the base." */
     default void onCapture(Piece attacker, Piece victim) { }
 
+    /** "[colour] player now has N/4 on pieces on the board and N/4 pieces on the base." — printed after a capture resets the victim. */
+    default void onCapturedPlayerStatus(AbstractPlayer player) { }
+
     /** "[colour] player wins!!!" */
     default void onWin(AbstractPlayer player, int place) { }
 

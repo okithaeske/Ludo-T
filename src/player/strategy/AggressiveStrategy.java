@@ -30,11 +30,9 @@ public class AggressiveStrategy implements PieceSelectionStrategy {
             return capturablePiece;
         }
 
-        // 2. Roll 6: bring from base only if no piece is already on the standard path
+        // 2. Roll 6 + no capture possible → bring from base regardless of board state (spec §2.1.1)
         if (roll == GameConstants.MAX_DICE_ROLL && player.hasPiecesAtBase()) {
-            if (player.getMovablePiecesOnBoard().isEmpty()) {
-                return player.getPiecesAtBase().getFirst();
-            }
+            return player.getPiecesAtBase().getFirst();
         }
 
         // 3. Move piece closest to home — avoid creating a block if possible

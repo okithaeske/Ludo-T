@@ -436,7 +436,7 @@ public class RuleEngine {
         for (int i = 1; i < blockPieces.size(); i++) {
             Piece piece = blockPieces.get(i);
             int fromPos = piece.getPosition();
-            int distance = GameConstants.TRIPLE_SIX_BLOCKADE_MOVE * i;
+            int distance = GameConstants.TRIPLE_SIX_BLOCKADE_MOVE;
             int newPos = (piece.getOriginalDirection() == Direction.CCW)
                     ? (fromPos - distance + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE
                     : (fromPos + distance) % GameConstants.BOARD_SIZE;
