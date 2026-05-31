@@ -1,10 +1,17 @@
 package model;
 
+import enums.Colour;
 import enums.Direction;
+
 import java.util.ArrayList;
 import java.util.List;
 
-public class Block {
+/**
+ * Implements {@link BoardToken} as a <b>Composite pattern</b> composite node
+ * (size &ge; 2). Engine code can treat a {@code Block} and a lone {@link Piece}
+ * uniformly through the {@code BoardToken} interface.
+ */
+public class Block implements BoardToken {
 
     private List<Piece> pieces;
     private int position;
@@ -20,8 +27,11 @@ public class Block {
         pieces.add(piece);
     }
 
-    public int getSize() {
-        return pieces.size();
+    // BoardToken (Composite node)
+    @Override public int getPosition() { return position; }
+    @Override public int getSize()     { return pieces.size(); }
+    @Override public Colour getColour() {
+        return pieces.isEmpty() ? Colour.NONE : pieces.get(0).getColour();
     }
 
     public Direction getDirectionForMove() {
@@ -43,10 +53,6 @@ public class Block {
 
     public List<Piece> getPieces() {
         return pieces;
-    }
-
-    public int getPosition() {
-        return position;
     }
 
     public void setPosition(int position) {

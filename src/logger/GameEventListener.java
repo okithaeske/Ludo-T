@@ -1,6 +1,7 @@
 package logger;
 
 import enums.Direction;
+import enums.TeleportDest;
 import model.Block;
 import model.MysteryCell;
 import model.Piece;
@@ -8,61 +9,92 @@ import player.AbstractPlayer;
 
 import java.util.List;
 
+/**
+ * Observer interface for game events. All methods have empty default implementations
+ * so that new listeners only need to override the events they care about (ISP).
+ *
+ * @see GameEventPublisher
+ * @see Logger
+ */
 public interface GameEventListener {
-    void onGameStart();
-    void onRoll(AbstractPlayer player, int value);
-    void onMove(Piece piece, int from, int to, Direction direction);
-    void onCapture(Piece attacker, Piece victim);
-    void onWin(AbstractPlayer player, int place);
-    void onRoundComplete();
-    void onMysterySpawn(int position);
-    void onBlockFormed(Block block);
 
-    // Coin toss when piece enters X: "[Color] piece [Name] direction determined as [cw/ccw] by coin toss."
-    void onCoinToss(Piece piece, Direction direction);
+    default void onGameStart() { }
 
-    // Direction flip event: "The [Color] piece [name], which was moving clockwise, has changed to moving counterclockwise."
-    void onDirectionChange(Piece piece, Direction from, Direction to);
+    /** Initial selection roll (before first player is determined): "[colour] rolls [value]" */
+    default void onSelectionRoll(AbstractPlayer player, int value) { }
 
-    // CCW piece teleported to Gamma → redirected to Beta
-    void onGammaCCWTeleportToBeta(Piece piece);
+    /** In-game dice roll: "[colour] player rolled [value]." */
+    default void onRoll(AbstractPlayer player, int value) { }
 
-    // "[Color] piece [name] attends briefing and cannot move for four rounds."
-    void onPieceFrozen(Piece piece);
+    /** Standard-board or home-straight move. {@code steps} = cells actually moved. */
+    default void onMove(Piece piece, int from, int to, Direction direction, int steps) { }
 
-    // "[Color] piece [name] is movement-restricted and has rolled three consecutively. Teleporting piece [name] to base."
-    void onFrozenEscapeToBase(Piece piece);
+    /** Piece was stopped before a blockade: "[colour] piece [id] is blocked from [from] to [blockedAt] by [blocker]." */
+    default void onPieceBlocked(Piece piece, int from, int blockedAt, List<Piece> blockers) { }
 
-    // "[Color] piece [name] feels energized, and movement speed doubles."
-    void onPieceEnergised(Piece piece);
+    /** "[colour] piece [name] lands on square L1, captures [colour] piece [name], and returns it to the base." */
+    default void onCapture(Piece attacker, Piece victim) { }
 
-    // "[Color] piece [name] feels sick, and movement speed halves."
-    void onPieceSick(Piece piece);
+    /** "[colour] player wins!!!" */
+    default void onWin(AbstractPlayer player, int place) { }
 
-    // Piece stopped at cell before opponent block
-    void onPieceBlockedAtAdjacent(Piece piece, int blockedAt, int movedTo);
+    default void onRoundComplete() { }
 
-    // No valid move available for player
-    void onNoValidMove(AbstractPlayer player);
+    /** "A mystery cell has spawned in location L1 and will be at this location for the next four rounds." */
+    default void onMysterySpawn(int position) { }
 
-    // End-of-round status summary
-    void onRoundSummary(List<AbstractPlayer> players, MysteryCell mysteryCell);
+    default void onBlockFormed(Block block) { }
 
-    // Game initialisation: list pieces for each player
-    void onGameInitialisation(List<AbstractPlayer> players);
+    /** Coin toss when piece first enters the board. */
+    default void onCoinToss(Piece piece, Direction direction) { }
 
-    // First player selection rolls + order
-    void onFirstPlayerSelected(AbstractPlayer player, List<AbstractPlayer> players, List<Integer> rolls);
+    /** "The [colour] piece [name], which was moving clockwise, has changed to moving counterclockwise." */
+    default void onDirectionChange(Piece piece, Direction from, Direction to) { }
 
-    // Piece moved from base to X with board/base counts
-    void onPieceMoveToX(Piece piece, int piecesOnBoard, int piecesAtBase);
+    /** CCW piece teleported to Gamma redirected to Beta. */
+    default void onGammaCCWTeleportToBeta(Piece piece) { }
 
-    // Block auto-breaks when it reaches the approach cell
-    void onBlockBrokenAtApproach(Block block, int approachCell);
+    /** "[colour] piece [name] attends briefing and cannot move for four rounds." */
+    default void onPieceFrozen(Piece piece) { }
 
-    // Attacker block captures defender block
-    void onBlockCapture(Block attacker, Block defender);
+    /** "[colour] piece [name] is movement-restricted and has rolled three consecutively." */
+    default void onFrozenEscapeToBase(Piece piece) { }
 
-    // Final standings printed once after the game is over
-    void onGameResult(List<AbstractPlayer> finishingOrder);
+    /** "[colour] piece [name] feels energized, and movement speed doubles." */
+    default void onPieceEnergised(Piece piece) { }
+
+    /** "[colour] piece [name] feels sick, and movement speed halves." */
+    default void onPieceSick(Piece piece) { }
+
+    /** "[colour] does not have other pieces… Moved the piece to square L3…" */
+    default void onPieceBlockedAtAdjacent(Piece piece, int blockedAt, int movedTo) { }
+
+    /** "[colour] does not have other pieces… Ignoring the throw…" */
+    default void onNoValidMove(AbstractPlayer player) { }
+
+    /** End-of-round status summary per player and mystery cell. */
+    default void onRoundSummary(List<AbstractPlayer> players, MysteryCell mysteryCell) { }
+
+    /** "[colour] player has four (04) pieces named…" at game start. */
+    default void onGameInitialisation(List<AbstractPlayer> players) { }
+
+    /** First player determined; includes final turn order. */
+    default void onFirstPlayerSelected(AbstractPlayer player,
+                                        List<AbstractPlayer> players,
+                                        List<Integer> rolls) { }
+
+    /** "[colour] player moves piece [id] to the starting point." + board/base counts. */
+    default void onPieceMoveToX(Piece piece, int piecesOnBoard, int piecesAtBase) { }
+
+    /** Block auto-breaks at approach cell. */
+    default void onBlockBrokenAtApproach(Block block, int approachCell) { }
+
+    /** Attacker block captures defender block. */
+    default void onBlockCapture(Block attacker, Block defender) { }
+
+    /** Final standings after game ends. */
+    default void onGameResult(List<AbstractPlayer> finishingOrder) { }
+
+    /** "[colour] player lands on a mystery cell and is teleported to [dest]." + "[colour] piece [id] teleported to [dest]." */
+    default void onTeleport(Piece piece, TeleportDest dest, int targetCell) { }
 }

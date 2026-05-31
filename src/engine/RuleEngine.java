@@ -3,18 +3,21 @@ package engine;
 import enums.Colour;
 import enums.Direction;
 import enums.GameMode;
-import enums.PieceState;
+import logger.GameEventPublisher;
 import model.Block;
 import model.BlockMoveResult;
 import model.Board;
 import model.GameConstants;
 import model.MoveResult;
 import model.Piece;
+import player.AbstractPlayer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-/** Stateless move validation and block resolution. */
+/** Stateless move validation, block resolution, and rule-enforcement actions. */
 public class RuleEngine {
 
     private final Board board;
@@ -25,22 +28,22 @@ public class RuleEngine {
         this.mode = mode;
     }
 
+    // ── Move validation ───────────────────────────────────────────────────────
+
     public MoveResult validateMove(Piece piece, int roll) {
         MoveResult result = new MoveResult();
 
-        if (piece.isMovementRestricted() || piece.getState() == PieceState.HOME) {
-            result.setValid(false);
-            return result;
+        if (piece.isMovementRestricted() || piece.getState().hasFinished()) {
+            return invalid(result);
         }
 
-        if (isPieceAtBase(piece)) {
+        if (piece.getState().requiresSixToMove()) {
             return validateBaseMove(piece, roll, result);
         }
 
         int steps = piece.getEffectiveRoll(roll);
         if (steps <= 0) {
-            result.setValid(false);
-            return result;
+            return invalid(result);
         }
 
         if (piece.isInHomeStraight()) {
@@ -61,10 +64,10 @@ public class RuleEngine {
         result.setTargetCell(targetCell);
 
         if (isOwnPieceAt(piece, targetCell)) {
-            return handleSameColourBlock(result, targetCell, piece);
+            return markValidMove(result, targetCell);
         }
 
-        if (isLudoT()) {
+        if (mode.isLudoT()) {
             result = applyLudoTRules(piece, targetCell, result);
         }
 
@@ -76,14 +79,14 @@ public class RuleEngine {
         return result;
     }
 
-    private boolean isPieceAtBase(Piece piece) {
-        return piece.getState() == PieceState.BASE;
+    private MoveResult invalid(MoveResult result) {
+        result.setValid(false);
+        return result;
     }
 
     private MoveResult validateBaseMove(Piece piece, int roll, MoveResult result) {
         if (roll != GameConstants.MAX_DICE_ROLL) {
-            result.setValid(false);
-            return result;
+            return invalid(result);
         }
 
         int targetCell = board.getStartX(piece.getColour());
@@ -96,7 +99,7 @@ public class RuleEngine {
         }
 
         if (isOwnPieceAt(piece, targetCell)) {
-            return handleSameColourBlock(result, targetCell, piece);
+            return markValidMove(result, targetCell);
         }
 
         if (isCaptureMove(piece, targetCell)) {
@@ -118,20 +121,17 @@ public class RuleEngine {
         if (newHomePos == GameConstants.HOME_EXIT_DISTANCE) {
             return handleHomeMove(result);
         }
-        result.setValid(false);
-        return result;
+        return invalid(result);
     }
 
     private MoveResult tryEnterHomeStraight(Piece piece, int steps, MoveResult result) {
         int distToApproach = distanceToApproach(piece);
 
-        // If the piece only lands on the approach, it remains on the standard path.
         if (steps <= distToApproach) {
             return null;
         }
 
         if (!canEnterHome(piece)) {
-            // Cannot enter home straight yet; continue on the standard board for another lap
             return null;
         }
 
@@ -152,8 +152,7 @@ public class RuleEngine {
         if (stepsIntoHomeStraight == GameConstants.HOME_EXIT_DISTANCE) {
             return handleHomeMove(result);
         }
-        result.setValid(false);
-        return result;
+        return invalid(result);
     }
 
     private int distanceToApproach(Piece piece) {
@@ -167,11 +166,7 @@ public class RuleEngine {
     }
 
     private int calculateTargetCell(Piece piece, int steps) {
-        if (piece.getDirection() == Direction.CCW) {
-            return (piece.getPosition() - steps + GameConstants.BOARD_SIZE)
-                    % GameConstants.BOARD_SIZE;
-        }
-        return (piece.getPosition() + steps) % GameConstants.BOARD_SIZE;
+        return calculateCellAfterSteps(piece.getPosition(), piece.getDirection(), steps);
     }
 
     private int calculateCellAfterSteps(int position, Direction direction, int steps) {
@@ -200,7 +195,8 @@ public class RuleEngine {
         return false;
     }
 
-    private MoveResult handleSameColourBlock(MoveResult result, int targetCell, Piece piece) {
+    /** Marks the move as valid at {@code targetCell} without any special consequence. */
+    private MoveResult markValidMove(MoveResult result, int targetCell) {
         result.setValid(true);
         result.setTargetCell(targetCell);
         return result;
@@ -259,7 +255,7 @@ public class RuleEngine {
     }
 
     public boolean canEnterHome(Piece piece) {
-        if (isLudoT()) {
+        if (mode.isLudoT()) {
             return piece.getCaptureCount() >= GameConstants.MIN_CAPTURES_FOR_HOME;
         }
         return true;
@@ -271,41 +267,45 @@ public class RuleEngine {
                 && targetCell == board.getMysteryPosition();
     }
 
+    // ── Block move validation ─────────────────────────────────────────────────
+
     public BlockMoveResult resolveBlock(Block block, int roll) {
         int steps = roll / block.getSize();
         Direction dir = block.getDirectionForMove();
         int approachCell = board.getApproach(block.getPieces().get(0).getColour());
-        boolean breakAtApproach = false;
-
-        for (Piece piece : block.getPieces()) {
-            int fromPos = piece.getPosition();
-            if (dir == Direction.CW) {
-                int distToApproach = (approachCell - fromPos + GameConstants.BOARD_SIZE)
-                        % GameConstants.BOARD_SIZE;
-                if (steps > distToApproach) {
-                    breakAtApproach = true;
-                }
-            } else {
-                int distToApproach = (fromPos - approachCell + GameConstants.BOARD_SIZE)
-                        % GameConstants.BOARD_SIZE;
-                if (steps > distToApproach) {
-                    breakAtApproach = true;
-                }
-            }
-        }
+        boolean breakAtApproach = blockWouldPassApproach(block, dir, approachCell, steps);
 
         if (breakAtApproach) {
-            List<Piece> blockPieces = new ArrayList<>(block.getPieces());
-            for (Piece piece : blockPieces) {
-                board.removePiece(piece, piece.getPosition());
-                piece.moveTo(approachCell);
-                board.placePiece(piece, approachCell);
-                block.breakBlock(piece);
-                piece.clearMovementEffects();
-            }
+            disperseBlockAtApproach(block, approachCell);
             return new BlockMoveResult(true, approachCell);
         }
 
+        advanceBlock(block, dir, steps);
+        return new BlockMoveResult(false, GameConstants.NO_POSITION);
+    }
+
+    private boolean blockWouldPassApproach(Block block, Direction dir, int approachCell, int steps) {
+        for (Piece piece : block.getPieces()) {
+            int fromPos = piece.getPosition();
+            int distToApproach = (dir == Direction.CW)
+                    ? (approachCell - fromPos + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE
+                    : (fromPos - approachCell + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
+            if (steps > distToApproach) return true;
+        }
+        return false;
+    }
+
+    private void disperseBlockAtApproach(Block block, int approachCell) {
+        for (Piece piece : new ArrayList<>(block.getPieces())) {
+            board.removePiece(piece, piece.getPosition());
+            piece.moveTo(approachCell);
+            board.placePiece(piece, approachCell);
+            block.breakBlock(piece);
+            piece.clearMovementEffects();
+        }
+    }
+
+    private void advanceBlock(Block block, Direction dir, int steps) {
         for (Piece piece : new ArrayList<>(block.getPieces())) {
             int fromPos = piece.getPosition();
             int newPos = calculateCellAfterSteps(fromPos, dir, steps);
@@ -313,19 +313,16 @@ public class RuleEngine {
             piece.moveTo(newPos);
             board.placePiece(piece, newPos);
         }
-
         if (!block.getPieces().isEmpty()) {
             block.setPosition(block.getPieces().get(0).getPosition());
         }
-        return new BlockMoveResult(false, -1);
     }
 
     public MoveResult validateBlockMove(Block attackerBlock, int roll) {
         MoveResult result = new MoveResult();
         int steps = roll / attackerBlock.getSize();
         if (steps <= 0) {
-            result.setValid(false);
-            return result;
+            return invalid(result);
         }
 
         Direction dir = attackerBlock.getDirectionForMove();
@@ -345,7 +342,6 @@ public class RuleEngine {
                 result.setDefenderBlock(defenderBlock);
                 return result;
             }
-
             result.setTargetCell(board.getAdjacentCell(firstOpponentBlock, dir));
             result.setValid(true);
             result.setBlockedAtAdjacent(true);
@@ -384,7 +380,8 @@ public class RuleEngine {
                 .filter(p -> p.getColour() != attackerColour)
                 .map(Piece::getColour)
                 .findFirst()
-                .orElseThrow();
+                .orElseThrow(() -> new IllegalStateException(
+                        "No opponent piece found at cell " + cell + " for attacker " + attackerColour));
     }
 
     public void applyBlockCapture(Block attacker, Block defender) {
@@ -408,7 +405,46 @@ public class RuleEngine {
         return dist1 >= dist2 ? p1.getDirection() : p2.getDirection();
     }
 
-    private boolean isLudoT() {
-        return mode == GameMode.LUDO_T;
+    // ── Rule T-6: forced block break on triple six ────────────────────────────
+
+    /**
+     * Disperses any block owned by {@code player} by moving all but the lead piece
+     * away by {@link GameConstants#TRIPLE_SIX_BLOCKADE_MOVE} cells each (Rule T-6).
+     * Moved here from {@code TurnExecutor} — block enforcement is a rule concern.
+     */
+    public void forceBlockBreak(AbstractPlayer player, GameEventPublisher publisher) {
+        Map<Integer, List<Piece>> blockMap = buildBlockMap(player);
+        for (Map.Entry<Integer, List<Piece>> entry : blockMap.entrySet()) {
+            List<Piece> blockPieces = entry.getValue();
+            if (blockPieces.size() >= GameConstants.MIN_BLOCK_SIZE) {
+                scatterBlock(blockPieces, publisher);
+            }
+        }
+    }
+
+    private Map<Integer, List<Piece>> buildBlockMap(AbstractPlayer player) {
+        Map<Integer, List<Piece>> blockMap = new HashMap<>();
+        for (Piece piece : player.getPiecesOnBoard()) {
+            if (piece.getPosition() >= 0 && piece.getPosition() < GameConstants.BOARD_SIZE) {
+                blockMap.computeIfAbsent(piece.getPosition(), k -> new ArrayList<>()).add(piece);
+            }
+        }
+        return blockMap;
+    }
+
+    private void scatterBlock(List<Piece> blockPieces, GameEventPublisher publisher) {
+        for (int i = 1; i < blockPieces.size(); i++) {
+            Piece piece = blockPieces.get(i);
+            int fromPos = piece.getPosition();
+            int distance = GameConstants.TRIPLE_SIX_BLOCKADE_MOVE * i;
+            int newPos = (piece.getOriginalDirection() == Direction.CCW)
+                    ? (fromPos - distance + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE
+                    : (fromPos + distance) % GameConstants.BOARD_SIZE;
+            board.removePiece(piece, fromPos);
+            piece.setDirection(piece.getOriginalDirection());
+            piece.moveTo(newPos);
+            board.placePiece(piece, newPos);
+            publisher.publishMove(piece, fromPos, newPos, piece.getOriginalDirection(), distance);
+        }
     }
 }

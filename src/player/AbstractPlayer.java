@@ -1,7 +1,6 @@
 package player;
 
 import enums.Colour;
-import enums.PieceState;
 import model.Board;
 import model.GameConstants;
 import model.NoPiece;
@@ -55,10 +54,10 @@ public abstract class AbstractPlayer {
         if (selected.isNull() || !selected.isMovementRestricted()) {
             return selected;
         }
-        // A frozen piece cannot move; fall back to any movable active piece instead of
-        // incorrectly skipping the whole player's turn.
-        for (Piece piece : getMovablePiecesOnBoard()) {
-            return piece;
+        // A frozen piece cannot move; fall back to any movable active piece.
+        List<Piece> movable = getMovablePiecesOnBoard();
+        if (!movable.isEmpty()) {
+            return movable.getFirst();
         }
         return NoPiece.getInstance();
     }
@@ -66,7 +65,7 @@ public abstract class AbstractPlayer {
     public List<Piece> getPiecesOnBoard() {
         List<Piece> onBoard = new ArrayList<>();
         for (Piece piece : pieces) {
-            if (piece.getState() == PieceState.ACTIVE) {
+            if (piece.getState().isOnBoard()) {
                 onBoard.add(piece);
             }
         }
@@ -76,7 +75,7 @@ public abstract class AbstractPlayer {
     public List<Piece> getMovablePiecesOnBoard() {
         List<Piece> movable = new ArrayList<>();
         for (Piece piece : pieces) {
-            if (piece.getState() == PieceState.ACTIVE && !piece.isMovementRestricted()) {
+            if (piece.getState().isOnBoard() && !piece.isMovementRestricted()) {
                 movable.add(piece);
             }
         }
@@ -86,7 +85,7 @@ public abstract class AbstractPlayer {
     public List<Piece> getPiecesAtBase() {
         List<Piece> atBase = new ArrayList<>();
         for (Piece piece : pieces) {
-            if (piece.getState() == PieceState.BASE) {
+            if (piece.getState().requiresSixToMove()) {
                 atBase.add(piece);
             }
         }
@@ -95,7 +94,7 @@ public abstract class AbstractPlayer {
 
     public boolean allHome() {
         for (Piece piece : pieces) {
-            if (piece.getState() != PieceState.HOME) {
+            if (!piece.getState().hasFinished()) {
                 return false;
             }
         }
@@ -116,7 +115,7 @@ public abstract class AbstractPlayer {
     }
 
     public boolean hasPiecesAtBase() {
-        return getPiecesAtBase().size() > 0;
+        return !getPiecesAtBase().isEmpty();
     }
 
     public boolean hasOpponentPieceAt(List<Piece> piecesAtTarget) {
@@ -139,16 +138,7 @@ public abstract class AbstractPlayer {
         return hasOpponentPieceAt(board.getPiecesAt(targetCell));
     }
 
-
-    public Colour getColour() {
-        return colour;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public Piece[] getPieces() {
-        return pieces;
-    }
+    public Colour getColour() { return colour; }
+    public String getName()   { return name; }
+    public Piece[] getPieces() { return pieces; }
 }

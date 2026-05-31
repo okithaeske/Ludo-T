@@ -5,7 +5,11 @@ import enums.Direction;
 import enums.PieceEffect;
 import enums.PieceState;
 
-public class Piece {
+/**
+ * Implements {@link BoardToken} as a <b>Composite pattern</b> leaf (size = 1).
+ */
+public class Piece implements BoardToken {
+
     private final String id;
     private final Colour colour;
     private int position;
@@ -16,12 +20,13 @@ public class Piece {
     private int effectRoundsLeft;
     private int approachPassCount;
     private Direction originalDirection;
-    private int homeStraightPosition; // 0 = not in straight, 1-5 = position inside straight
+    // 0 = not in straight; 1–5 = position inside straight; 6 = HOME (HOME_EXIT_DISTANCE)
+    private int homeStraightPosition;
 
     public Piece(String id, Colour colour) {
         this.id = id;
         this.colour = colour;
-        this.position = GameConstants.BASE_POSITION;
+        this.position = GameConstants.NO_POSITION;
         this.state = PieceState.BASE;
         this.direction = Direction.CW;
         this.originalDirection = Direction.CW;
@@ -31,6 +36,11 @@ public class Piece {
         this.approachPassCount = 0;
         this.homeStraightPosition = 0;
     }
+
+    // BoardToken (Composite leaf)
+    @Override public int getPosition() { return position; }
+    @Override public int getSize()     { return 1; }
+    @Override public Colour getColour() { return colour; }
 
     public void capture() {
         captureCount++;
@@ -79,8 +89,6 @@ public class Piece {
     }
 
     public String getId() { return id; }
-    public Colour getColour() { return colour; }
-    public int getPosition() { return position; }
     public PieceState getState() { return state; }
     public Direction getDirection() { return direction; }
     public int getCaptureCount() { return captureCount; }

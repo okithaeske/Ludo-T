@@ -1,13 +1,15 @@
 import engine.GameEngine;
 import engine.GameEngineBuilder;
 import enums.GameMode;
+import logger.Logger;
 
 public class Main {
 
     public static void main(String[] args) {
         GameEngine game = new GameEngineBuilder()
-                .withMode(GameMode.LUDO_T)
-                .withSeed(42)
+                .withMode(GameMode.CLASSIC)
+                .withSeed(10)
+                .withListener(new Logger())
                 .build();
         game.startGame();
     }

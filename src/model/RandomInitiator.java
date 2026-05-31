@@ -4,18 +4,20 @@ import java.util.Random;
 
 public class RandomInitiator {
 
-    private static RandomInitiator instance;
+    // Initialization-on-demand holder: thread-safe without synchronisation overhead.
+    private static final class Holder {
+        static final RandomInitiator INSTANCE = new RandomInitiator();
+    }
+
     private Random random;
 
     private RandomInitiator() {
         random = new Random();
     }
 
+    /** Returns the single shared {@code RandomInitiator} instance. Thread-safe. */
     public static RandomInitiator getInstance() {
-        if (instance == null) {
-            instance = new RandomInitiator();
-        }
-        return instance;
+        return Holder.INSTANCE;
     }
 
     public void setSeed(long seed) {
@@ -25,6 +27,4 @@ public class RandomInitiator {
     public int nextInt(int bound) {
         return random.nextInt(bound);
     }
-
-
 }

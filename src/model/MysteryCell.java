@@ -16,9 +16,7 @@ public class MysteryCell {
         this.active = false;
     }
 
-    /**
-     * Spawns only on an empty standard-path cell. Returns true only when a cell was spawned.
-     */
+    /** Spawns only on an empty standard-path cell. Returns true only when a cell was found. */
     public boolean spawn(Board board) {
         if (!hasAnyPieceOnStandardPath(board)) {
             return false;
@@ -34,9 +32,7 @@ public class MysteryCell {
         return true;
     }
 
-    /**
-     * Ticks one completed round. Returns true when the mystery cell relocated.
-     */
+    /** Ticks one completed round. Returns true when the mystery cell relocated. */
     public boolean tick(Board board) {
         if (!active) {
             return false;
@@ -81,12 +77,15 @@ public class MysteryCell {
     }
 
     private int findEmptyMysteryPosition(Board board) {
-        for (int attempts = 0; attempts < GameConstants.BOARD_SIZE * 3; attempts++) {
+        // Try random candidates first (MYSTERY_FIND_EMPTY_RETRIES = BOARD_SIZE * 3 gives a
+        // high probability of finding an empty cell quickly on a typical board).
+        for (int attempt = 0; attempt < GameConstants.MYSTERY_FIND_EMPTY_RETRIES; attempt++) {
             int candidate = RandomInitiator.getInstance().nextInt(GameConstants.BOARD_SIZE);
             if (candidate != lastPosition && !board.isOccupied(candidate)) {
                 return candidate;
             }
         }
+        // Deterministic fallback: scan all cells to guarantee we find one if it exists.
         for (int candidate = 0; candidate < GameConstants.BOARD_SIZE; candidate++) {
             if (candidate != lastPosition && !board.isOccupied(candidate)) {
                 return candidate;

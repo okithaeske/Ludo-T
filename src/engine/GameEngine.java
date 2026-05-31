@@ -1,8 +1,10 @@
 package engine;
 
+import engine.command.ExecuteTurnCommand;
+import engine.command.TurnCommand;
 import enums.GameMode;
+import logger.GameEventListener;
 import logger.GameEventPublisher;
-import logger.Logger;
 import model.Board;
 import model.GameConstants;
 import model.MysteryCell;
@@ -12,7 +14,16 @@ import player.PlayerFactory;
 import java.util.List;
 
 /**
- * Facade over the game subsystems.
+ * <b>Facade</b> over the game subsystems: {@link Board}, {@link RuleEngine},
+ * {@link TurnManager}, {@link TurnExecutor}, {@link EffectHandler}, and
+ * {@link WinTracker}. Clients call only {@link #startGame()}.
+ *
+ * <p>Constructed exclusively via {@link GameEngineBuilder} (Builder pattern) which
+ * injects {@link GameEventListener} implementations, satisfying the
+ * Dependency Inversion Principle.
+ *
+ * <p>Turn execution uses the <b>Command pattern</b> ({@link TurnCommand}) so
+ * {@code GameEngine} remains decoupled from {@link TurnExecutor} internals.
  */
 public class GameEngine {
 
@@ -23,15 +34,15 @@ public class GameEngine {
     private final GameEventPublisher publisher;
     private final TurnExecutor turnExecutor;
     private final WinTracker winTracker;
+    private final GameMode gameMode;
     private int roundNumber;
     private int completedRoundsWithStandardPathPieces;
-    private final GameMode gameMode;
 
-    public GameEngine(GameMode gameMode) {
+    GameEngine(GameMode gameMode, List<GameEventListener> listeners) {
         this.gameMode = gameMode;
         this.board = new Board();
         this.publisher = new GameEventPublisher();
-        this.publisher.addListener(new Logger());
+        listeners.forEach(publisher::addListener);
         this.players = PlayerFactory.createPlayers();
         this.ruleEngine = new RuleEngine(board, gameMode);
         this.turnManager = new TurnManager(players);
@@ -44,6 +55,8 @@ public class GameEngine {
                 effectHandler, gameMode);
     }
 
+    // ── Public API ────────────────────────────────────────────────────────────
+
     public void startGame() {
         publisher.publishGameStart();
         publisher.publishGameInitialisation(players);
@@ -55,7 +68,7 @@ public class GameEngine {
         FirstPlayerSelector selector = new FirstPlayerSelector(players, turnManager, publisher);
         AbstractPlayer firstPlayer = selector.selectFirstPlayer();
         turnManager.setOrder(firstPlayer);
-        turnManager.resetRollStreaks(); // selection rolls must not affect real game streaks
+        turnManager.resetRollStreaks();
         publisher.publishFirstPlayerSelected(firstPlayer, turnManager.getTurnOrder(), List.of());
     }
 
@@ -66,6 +79,10 @@ public class GameEngine {
         publisher.publishGameResult(winTracker.getFinishingOrder());
     }
 
+    /**
+     * Executes one complete round for all players.
+     * Uses the <b>Command pattern</b> to dispatch each turn.
+     */
     public void executeRound() {
         roundNumber++;
 
@@ -75,11 +92,15 @@ public class GameEngine {
                 continue;
             }
 
-            turnExecutor.executeTurn(player, false);
+            TurnCommand turn = new ExecuteTurnCommand(turnExecutor, player, false);
+            turn.execute();
+
             while (turnManager.isExtraRollPending()) {
                 turnManager.clearExtraRoll();
-                turnExecutor.executeTurn(player, true);
+                TurnCommand extraTurn = new ExecuteTurnCommand(turnExecutor, player, true);
+                extraTurn.execute();
             }
+
             turnManager.advanceToNextPlayer();
             if (winTracker.checkWinCondition(player)) return;
         }
@@ -89,30 +110,46 @@ public class GameEngine {
         publisher.publishRoundComplete();
     }
 
+    public boolean isGameOver() {
+        return winTracker.isGameOver();
+    }
+
+    // ── Mystery cell lifecycle ────────────────────────────────────────────────
+
     private void updateMysteryCellAfterCompletedRound() {
-        if (!isLudoT()) return;
+        if (!gameMode.isLudoT()) return;
 
         MysteryCell mysteryCell = board.getMysteryCell();
         if (mysteryCell != null && mysteryCell.isActive()) {
-            boolean relocated = mysteryCell.tick(board);
-            if (relocated && mysteryCell.isActive()) {
-                publisher.publishMysterySpawn(mysteryCell.getPosition());
-            }
+            tickActiveMysteryCell(mysteryCell);
             return;
         }
 
+        trackRoundsWithPiecesOnBoard();
+        trySpawnMysteryCell();
+    }
+
+    private void tickActiveMysteryCell(MysteryCell mysteryCell) {
+        boolean relocated = mysteryCell.tick(board);
+        if (relocated && mysteryCell.isActive()) {
+            publisher.publishMysterySpawn(mysteryCell.getPosition());
+        }
+    }
+
+    private void trackRoundsWithPiecesOnBoard() {
         if (hasAnyPieceOnStandardPath()) {
             completedRoundsWithStandardPathPieces++;
         }
+    }
 
-        if (completedRoundsWithStandardPathPieces >= GameConstants.MYSTERY_SPAWN_ROUND) {
-            if (board.getMysteryCell() == null) {
-                board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION));
-            }
-            boolean spawned = board.getMysteryCell().spawn(board);
-            if (spawned) {
-                publisher.publishMysterySpawn(board.getMysteryPosition());
-            }
+    private void trySpawnMysteryCell() {
+        if (completedRoundsWithStandardPathPieces < GameConstants.MYSTERY_SPAWN_ROUND) return;
+        if (board.getMysteryCell() == null) {
+            board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION));
+        }
+        boolean spawned = board.getMysteryCell().spawn(board);
+        if (spawned) {
+            publisher.publishMysterySpawn(board.getMysteryPosition());
         }
     }
 
@@ -123,9 +160,5 @@ public class GameEngine {
             }
         }
         return false;
-    }
-
-    public boolean isLudoT() {
-        return gameMode == GameMode.LUDO_T;
     }
 }

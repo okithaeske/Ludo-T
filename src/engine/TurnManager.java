@@ -27,25 +27,22 @@ public class TurnManager {
         this.consecutiveThreesPerPlayer = new HashMap<>();
     }
 
-    public int rollDice() {
-        int roll = dice.roll();
-        updateConsecutiveRolls(roll, getCurrentPlayer());
-        return roll;
-    }
-
     public int rollDice(AbstractPlayer player) {
         int roll = dice.roll();
-        updateConsecutiveRolls(roll, player);
+        updateConsecutiveSixes(roll);
+        updateConsecutiveThrees(roll, player);
         return roll;
     }
 
-    private void updateConsecutiveRolls(int roll, AbstractPlayer player) {
+    private void updateConsecutiveSixes(int roll) {
         if (roll == GameConstants.MAX_DICE_ROLL) {
             consecutiveSixes++;
         } else {
             consecutiveSixes = 0;
         }
+    }
 
+    private void updateConsecutiveThrees(int roll, AbstractPlayer player) {
         if (roll == GameConstants.FROZEN_ESCAPE_ROLL) {
             consecutiveThreesPerPlayer.merge(player, 1, Integer::sum);
         } else {
@@ -53,13 +50,7 @@ public class TurnManager {
         }
     }
 
-    // Used for extra-roll continuations within the same player's turn (no sixes reset)
-    public void nextPlayer() {
-        extraRollPending = false;
-        currentPlayerIndex = (currentPlayerIndex + 1) % turnOrder.size();
-    }
-
-    // Used when genuinely moving to the next player — resets consecutive sixes
+    /** Moves to the next player and resets consecutive sixes. */
     public void advanceToNextPlayer() {
         extraRollPending = false;
         consecutiveSixes = 0;
@@ -98,7 +89,7 @@ public class TurnManager {
     }
 
     private void reorderFromIndex(int firstIndex) {
-        List<AbstractPlayer> reordered = new java.util.ArrayList<>();
+        List<AbstractPlayer> reordered = new ArrayList<>();
         for (int i = 0; i < turnOrder.size(); i++) {
             reordered.add(turnOrder.get((firstIndex + i) % turnOrder.size()));
         }
@@ -132,4 +123,3 @@ public class TurnManager {
         consecutiveThreesPerPlayer.clear();
     }
 }
-

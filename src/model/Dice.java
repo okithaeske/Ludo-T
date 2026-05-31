@@ -1,23 +1,21 @@
 package model;
 
-import java.util.Random;
-
 public class Dice {
 
-    private static Dice instance;
+    // Initialization-on-demand holder: thread-safe without synchronisation overhead.
+    private static final class Holder {
+        static final Dice INSTANCE = new Dice();
+    }
 
     private Dice() { }
 
-    // Singleton pattern is used to ensure only one instance of Dice exists
+    /** Returns the single shared {@code Dice} instance. Thread-safe. */
     public static Dice getInstance() {
-        if (instance == null) {
-            instance = new Dice();
-        }
-        return instance;
+        return Holder.INSTANCE;
     }
 
     public int roll() {
-        return RandomInitiator.getInstance().nextInt(6) + 1;
+        return RandomInitiator.getInstance().nextInt(GameConstants.MAX_DICE_ROLL)
+                + GameConstants.MIN_DICE_ROLL;
     }
-
 }
