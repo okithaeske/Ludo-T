@@ -3,8 +3,8 @@ package engine;
 import enums.Colour;
 import enums.Direction;
 import enums.GameMode;
-import logger.GameEventPublisher;
 import model.Block;
+import model.BlockBreakMove;
 import model.BlockMoveResult;
 import model.Board;
 import model.GameConstants;
@@ -408,18 +408,31 @@ public class RuleEngine {
     // ── Rule T-6: forced block break on triple six ────────────────────────────
 
     /**
-     * Disperses any block owned by {@code player} by moving all but the lead piece
-     * away by {@link GameConstants#TRIPLE_SIX_BLOCKADE_MOVE} cells each (Rule T-6).
-     * Moved here from {@code TurnExecutor} — block enforcement is a rule concern.
+     * Plans the piece relocations required to disperse any block owned by
+     * {@code player} (Rule T-6: triple-six blockade break). Returns one
+     * {@link BlockBreakMove} per piece that must be scattered; the caller
+     * ({@link TurnExecutor}) applies the moves and publishes events.
+     *
+     * <p>Pure computation — no board mutations, no events fired.
      */
-    public void forceBlockBreak(AbstractPlayer player, GameEventPublisher publisher) {
+    public List<BlockBreakMove> planBlockBreak(AbstractPlayer player) {
+        List<BlockBreakMove> moves = new ArrayList<>();
         Map<Integer, List<Piece>> blockMap = buildBlockMap(player);
-        for (Map.Entry<Integer, List<Piece>> entry : blockMap.entrySet()) {
-            List<Piece> blockPieces = entry.getValue();
+        for (List<Piece> blockPieces : blockMap.values()) {
             if (blockPieces.size() >= GameConstants.MIN_BLOCK_SIZE) {
-                scatterBlock(blockPieces, publisher);
+                for (int i = 1; i < blockPieces.size(); i++) {
+                    Piece piece = blockPieces.get(i);
+                    int fromPos = piece.getPosition();
+                    int distance = GameConstants.TRIPLE_SIX_BLOCKADE_MOVE;
+                    Direction dir = piece.getOriginalDirection();
+                    int newPos = (dir == Direction.CCW)
+                            ? (fromPos - distance + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE
+                            : (fromPos + distance) % GameConstants.BOARD_SIZE;
+                    moves.add(new BlockBreakMove(piece, fromPos, newPos, dir, distance));
+                }
             }
         }
+        return moves;
     }
 
     private Map<Integer, List<Piece>> buildBlockMap(AbstractPlayer player) {
@@ -430,21 +443,5 @@ public class RuleEngine {
             }
         }
         return blockMap;
-    }
-
-    private void scatterBlock(List<Piece> blockPieces, GameEventPublisher publisher) {
-        for (int i = 1; i < blockPieces.size(); i++) {
-            Piece piece = blockPieces.get(i);
-            int fromPos = piece.getPosition();
-            int distance = GameConstants.TRIPLE_SIX_BLOCKADE_MOVE;
-            int newPos = (piece.getOriginalDirection() == Direction.CCW)
-                    ? (fromPos - distance + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE
-                    : (fromPos + distance) % GameConstants.BOARD_SIZE;
-            board.removePiece(piece, fromPos);
-            piece.setDirection(piece.getOriginalDirection());
-            piece.moveTo(newPos);
-            board.placePiece(piece, newPos);
-            publisher.publishMove(piece, fromPos, newPos, piece.getOriginalDirection(), distance);
-        }
     }
 }

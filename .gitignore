@@ -28,3 +28,11 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Generated artifacts ###
+.scannerwork/
+coverage-report/
+coverage.exec
+src.zip
+sources_list.txt
+lib/jacoco-extracted/
