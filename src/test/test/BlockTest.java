@@ -2,6 +2,7 @@ package test.test;
 
 import enums.Colour;
 import enums.Direction;
+import enums.PieceState;
 import model.Block;
 import model.Piece;
 import org.junit.jupiter.api.DisplayName;
@@ -50,6 +51,28 @@ class BlockTest extends BaseTest {
 
         // Assert
         assertTrue(defender.canBeCaptured(attacker));
+    }
+
+    // breakBlock() direction restore (Rule T-5)
+    @Test
+    @DisplayName("should_restoreOriginalDirection_when_blockIsBroken")
+    void should_restoreOriginalDirection_when_blockIsBroken() {
+        // Arrange — piece assigned CCW as original direction, then temporarily redirected CW
+        // (simulating a Gamma teleport that flipped the direction while in a block).
+        Piece piece = new Piece("R1", Colour.RED);
+        piece.setState(PieceState.ACTIVE);
+        piece.assignInitialDirection(Direction.CCW); // originalDirection = CCW
+        piece.setDirection(Direction.CW);            // current direction flipped to CW
+
+        Block block = new Block(10, Direction.CW);
+        block.addPiece(piece);
+
+        // Act
+        block.breakBlock(piece);
+
+        // Assert — direction must be restored to the original CCW
+        assertEquals(Direction.CCW, piece.getDirection());
+        assertEquals(0, block.getSize());
     }
 
     @Test

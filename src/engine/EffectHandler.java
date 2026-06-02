@@ -142,8 +142,14 @@ public class EffectHandler {
         long opponentCount = piecesAtTarget.stream()
                 .filter(p -> p.getColour() != piece.getColour())
                 .count();
+        long friendlyCount = piecesAtTarget.stream()
+                .filter(p -> p.getColour() == piece.getColour())
+                .count();
 
-        if (opponentCount == 1) {
+        if (friendlyCount >= GameConstants.MIN_BLOCK_SIZE) {
+            // Destination already holds a full friendly block; piece cannot join it.
+            piece.reset();
+        } else if (opponentCount == 1) {
             captureOpponentAtDestination(piece, piecesAtTarget);
         } else if (opponentCount >= GameConstants.MIN_BLOCK_SIZE) {
             piece.reset();

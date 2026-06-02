@@ -4,6 +4,7 @@ import engine.GameEngine;
 import engine.GameEngineBuilder;
 import enums.GameMode;
 import logger.GameEventListener;
+import model.GameConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -98,6 +99,34 @@ class GameEngineTest extends BaseTest {
                 .withMode(GameMode.LUDO_T)
                 .withSeed(42L)
                 .build());
+    }
+
+    @Test
+    @DisplayName("should_spawnMysteryCell_when_twoRoundsHavePassedWithPiecesOnBoard")
+    void should_spawnMysteryCell_when_twoRoundsHavePassedWithPiecesOnBoard() {
+        // Arrange — capture mystery-spawn event via listener.
+        // MysteryCellManager spawns after MYSTERY_SPAWN_ROUND (2) rounds with ≥1 piece on the path.
+        boolean[] spawned = {false};
+        GameEventListener listener = new GameEventListener() {
+            @Override
+            public void onMysterySpawn(int position) {
+                spawned[0] = true;
+            }
+        };
+
+        GameEngine game = new GameEngineBuilder()
+                .withMode(GameMode.LUDO_T)
+                .withSeed(42L)
+                .withListener(listener)
+                .build();
+
+        // Act — run up to 20 rounds; mystery must have spawned well within that window.
+        for (int i = 0; i < 20 && !game.isGameOver() && !spawned[0]; i++) {
+            game.executeRound();
+        }
+
+        // Assert
+        assertTrue(spawned[0], "Mystery cell should spawn after 2 rounds with pieces on the board");
     }
 
     private int runUntilOver(GameEngine game) {

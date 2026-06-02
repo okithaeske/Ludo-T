@@ -219,6 +219,25 @@ class TurnManagerTest extends BaseTest {
         assertFalse(tm.isExtraRollPending());
     }
 
+    // Triple six: bonus rolls are voided (Rule 4)
+    @Test
+    @DisplayName("should_ignoreThirdConsecutiveSix_when_threeRolledInRow")
+    void should_ignoreThirdConsecutiveSix_when_threeRolledInRow() {
+        // Arrange — two sixes grant two pending extra rolls; the third triggers a penalty.
+        // handleTripleSix() must clear the pending state so no extra roll remains.
+        forceNextRoll(6); tm.rollDice(red); tm.grantExtraRoll();
+        forceNextRoll(6); tm.rollDice(red); tm.grantExtraRoll();
+        forceNextRoll(6); tm.rollDice(red);
+        assertTrue(tm.isTripleSix());
+
+        // Act
+        tm.handleTripleSix();
+
+        // Assert — extra-roll flag is cleared; the three sixes grant nothing
+        assertFalse(tm.isExtraRollPending());
+        assertEquals(0, tm.getConsecutiveSixes());
+    }
+
     /**
      * Seeds the RNG so the next {@code nextInt(6)} returns {@code (desiredRoll - 1)},
      * which the dice translates to {@code desiredRoll}.

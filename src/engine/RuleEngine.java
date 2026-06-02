@@ -69,6 +69,9 @@ public class RuleEngine {
         result.setTargetCell(targetCell);
 
         if (isOwnPieceAt(piece, targetCell)) {
+            if (wouldExceedBlockSize(piece, targetCell)) {
+                return invalid(result);
+            }
             return markValidMove(result, targetCell);
         }
 
@@ -104,6 +107,9 @@ public class RuleEngine {
         }
 
         if (isOwnPieceAt(piece, targetCell)) {
+            if (wouldExceedBlockSize(piece, targetCell)) {
+                return invalid(result);
+            }
             return markValidMove(result, targetCell);
         }
 
@@ -204,6 +210,13 @@ public class RuleEngine {
             }
         }
         return false;
+    }
+
+    private boolean wouldExceedBlockSize(Piece piece, int targetCell) {
+        long sameColour = board.getPiecesAt(targetCell).stream()
+                .filter(p -> p.getColour() == piece.getColour())
+                .count();
+        return sameColour >= GameConstants.MIN_BLOCK_SIZE;
     }
 
     /** Marks the move as valid at {@code targetCell} without any special consequence. */

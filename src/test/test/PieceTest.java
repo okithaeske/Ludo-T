@@ -152,6 +152,34 @@ class PieceTest extends BaseTest {
         assertTrue(piece.canEnterHomeStraight());
     }
 
+    // Full capture reset (Rule T-9)
+    @Test
+    @DisplayName("should_resetAllPieceInfo_when_pieceIsCaptured")
+    void should_resetAllPieceInfo_when_pieceIsCaptured() {
+        // Arrange — piece in the middle of a game: active on board with effects and history.
+        piece.setState(PieceState.ACTIVE);
+        piece.moveTo(25);
+        piece.assignInitialDirection(Direction.CCW);
+        piece.capture();
+        piece.applyEffect(PieceEffect.FROZEN);
+        piece.incrementApproachPass();
+        piece.setHomeStraightPosition(2);
+
+        // Act — reset() is called by TurnExecutor when the piece is captured
+        piece.reset();
+
+        // Assert — every field must be back to its newly-constructed default
+        assertEquals(GameConstants.NO_POSITION, piece.getPosition());
+        assertEquals(PieceState.BASE, piece.getState());
+        assertEquals(Direction.CW, piece.getDirection());
+        assertEquals(Direction.CW, piece.getOriginalDirection());
+        assertEquals(0, piece.getCaptureCount());
+        assertEquals(PieceEffect.NONE, piece.getActiveEffect());
+        assertEquals(0, piece.getEffectRoundsLeft());
+        assertEquals(0, piece.getApproachPassCount());
+        assertEquals(0, piece.getHomeStraightPosition());
+    }
+
     // getEffectiveRoll()
     @Test
     @DisplayName("should_doubleRoll_when_pieceIsEnergised")
