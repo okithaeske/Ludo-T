@@ -169,7 +169,7 @@ public class Board {
      */
     public Block getBlockAt(int cell, Colour colour, Direction direction) {
         List<Piece> sameColour = getPiecesAt(cell).stream()
-                .filter(p -> p.getColour() == colour)
+                .filter(p -> p.getColour() == colour && !p.isMovementRestricted())
                 .collect(Collectors.toList());
         if (sameColour.size() < GameConstants.MIN_BLOCK_SIZE) return null;
         Block block = new Block(cell, direction);

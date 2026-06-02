@@ -184,6 +184,7 @@ public class TurnExecutor {
             board.removePiece(piece, fromCell);
         }
         piece.leaveStandardPathForHomeStraight(result.getHomeStraightPosition());
+        piece.clearMovementEffects();
         int steps = result.getHomeStraightPosition() - oldHomePos;
         publisher.publishMove(piece, fromCell, result.getHomeStraightPosition(),
                 piece.getDirection(), steps);
