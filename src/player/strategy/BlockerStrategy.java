@@ -103,14 +103,18 @@ public class BlockerStrategy implements PieceSelectionStrategy {
     private boolean canPieceAheadOfBlockMove(int roll, Board board) {
         int blockDist = getBlockDistanceToHome(board);
         for (Piece piece : player.getMovablePiecesOnBoard()) {
-            // Skip pieces that are part of the block
             if (board.getPiecesAt(piece.getPosition()).size() >= GameConstants.MIN_BLOCK_SIZE) {
                 continue;
             }
-            // Only consider pieces ahead of (closer to home than) the block
             int pieceDist = board.distanceToHome(piece);
-            if (pieceDist < blockDist) {
-                return true; // at least one piece ahead can move
+            if (pieceDist >= blockDist) {
+                continue;
+            }
+            // projectPosition returns NO_POSITION for pieces in the home straight —
+            // those require an exact roll (Rule 10) and may not be able to move.
+            int target = board.projectPosition(piece, piece.getEffectiveRoll(roll));
+            if (target != GameConstants.NO_POSITION) {
+                return true;
             }
         }
         return false;
