@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import engine.RuleEngine;
 import enums.Colour;
@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("RuleEngine")
@@ -46,7 +47,7 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(piece, 3);
 
         // Assert
-        assertFalse(result.isValid());
+        Assertions.assertFalse(result.isValid());
     }
 
     @Test
@@ -59,7 +60,7 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(piece, GameConstants.MAX_DICE_ROLL);
 
         // Assert
-        assertTrue(result.isValid());
+        Assertions.assertTrue(result.isValid());
     }
 
     @Test
@@ -72,13 +73,13 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(piece, GameConstants.MAX_DICE_ROLL);
 
         // Assert
-        assertEquals(board.getStartX(Colour.RED), result.getTargetCell());
+        Assertions.assertEquals(board.getStartX(Colour.RED), result.getTargetCell());
     }
 
     @Test
     @DisplayName("should_returnInvalid_when_basePieceStartXBlockedByOpponentBlock")
     void should_returnInvalid_when_basePieceStartXBlockedByOpponentBlock() {
-        // Arrange â€” two Green pieces block Red's start X
+        // Arrange Ã¢â‚¬â€ two Green pieces block Red's start X
         int redStart = board.getStartX(Colour.RED);
         Piece g1 = new Piece("G1", Colour.GREEN);
         Piece g2 = new Piece("G2", Colour.GREEN);
@@ -91,14 +92,14 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(redPiece, GameConstants.MAX_DICE_ROLL);
 
         // Assert
-        assertFalse(result.isValid());
+        Assertions.assertFalse(result.isValid());
     }
 
     // Same-colour landing
     @Test
     @DisplayName("should_returnValid_when_pieceLandsOnSameColourPiece")
     void should_returnValid_when_pieceLandsOnSameColourPiece() {
-        // Arrange â€” R1 at 10, R2 at 11 (both CW); R1 rolls 1 â†’ target = 11
+        // Arrange Ã¢â‚¬â€ R1 at 10, R2 at 11 (both CW); R1 rolls 1 Ã¢â€ â€™ target = 11
         Piece r1 = new Piece("R1", Colour.RED);
         r1.setState(PieceState.ACTIVE);
         r1.moveTo(10);
@@ -113,14 +114,14 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(r1, 1);
 
         // Assert
-        assertTrue(result.isValid());
+        Assertions.assertTrue(result.isValid());
     }
 
     // Capture
     @Test
     @DisplayName("should_setCapture_when_pieceCanCaptureOpponent")
     void should_setCapture_when_pieceCanCaptureOpponent() {
-        // Arrange â€” Red at 10, Green (single) at 11; roll 1 â†’ target = 11
+        // Arrange Ã¢â‚¬â€ Red at 10, Green (single) at 11; roll 1 Ã¢â€ â€™ target = 11
         Piece redPiece = new Piece("R1", Colour.RED);
         redPiece.setState(PieceState.ACTIVE);
         redPiece.moveTo(10);
@@ -135,15 +136,15 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(redPiece, 1);
 
         // Assert
-        assertTrue(result.isCapture());
-        assertEquals(greenPiece, result.getCapturedPiece());
+        Assertions.assertTrue(result.isCapture());
+        Assertions.assertEquals(greenPiece, result.getCapturedPiece());
     }
 
     // Opponent block stops at adjacent
     @Test
     @DisplayName("should_stopAtAdjacentCell_when_opponentBlockInPath")
     void should_stopAtAdjacentCell_when_opponentBlockInPath() {
-        // Arrange â€” Red at 12 (CW), two Green pieces at 15; roll 3 â†’ would land on 15
+        // Arrange Ã¢â‚¬â€ Red at 12 (CW), two Green pieces at 15; roll 3 Ã¢â€ â€™ would land on 15
         Piece redPiece = new Piece("R1", Colour.RED);
         redPiece.setState(PieceState.ACTIVE);
         redPiece.moveTo(12);
@@ -162,9 +163,9 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(redPiece, 3);
 
         // Assert
-        assertTrue(result.isBlockedAtAdjacent());
+        Assertions.assertTrue(result.isBlockedAtAdjacent());
         // Adjacent cell before 15 in CW direction = 14
-        assertEquals(14, result.getTargetCell());
+        Assertions.assertEquals(14, result.getTargetCell());
     }
 
     // canEnterHome
@@ -176,7 +177,7 @@ class RuleEngineTest extends BaseTest {
         // captureCount = 0 by default
 
         // Assert
-        assertFalse(ludoTEngine.canEnterHome(piece));
+        Assertions.assertFalse(ludoTEngine.canEnterHome(piece));
     }
 
     @Test
@@ -187,24 +188,24 @@ class RuleEngineTest extends BaseTest {
         piece.capture();
 
         // Assert
-        assertTrue(ludoTEngine.canEnterHome(piece));
+        Assertions.assertTrue(ludoTEngine.canEnterHome(piece));
     }
 
     @Test
     @DisplayName("should_alwaysAllowHomeEntry_when_classicMode")
     void should_alwaysAllowHomeEntry_when_classicMode() {
-        // Arrange â€” piece with zero captures
+        // Arrange Ã¢â‚¬â€ piece with zero captures
         Piece piece = new Piece("R1", Colour.RED);
 
         // Assert
-        assertTrue(classicEngine.canEnterHome(piece));
+        Assertions.assertTrue(classicEngine.canEnterHome(piece));
     }
 
     // Standard path movement (Rule 1)
     @Test
     @DisplayName("should_returnValidMove_when_pieceMovesExactCellsOnStandardPath")
     void should_returnValidMove_when_pieceMovesExactCellsOnStandardPath() {
-        // Arrange — Red at 10 (CW), roll 3 → should land at 13
+        // Arrange â€” Red at 10 (CW), roll 3 â†’ should land at 13
         Piece piece = new Piece("R1", Colour.RED);
         piece.setState(PieceState.ACTIVE);
         piece.moveTo(10);
@@ -215,15 +216,15 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(piece, 3);
 
         // Assert
-        assertTrue(result.isValid());
-        assertEquals(13, result.getTargetCell());
+        Assertions.assertTrue(result.isValid());
+        Assertions.assertEquals(13, result.getTargetCell());
     }
 
     // Over-stacking own piece (Rule 7)
     @Test
     @DisplayName("should_returnInvalidMove_when_pieceTriesToLandOnOwnPiece")
     void should_returnInvalidMove_when_pieceTriesToLandOnOwnPiece() {
-        // Arrange — two Red pieces already form a block at cell 15; a 3rd Red piece at 12
+        // Arrange â€” two Red pieces already form a block at cell 15; a 3rd Red piece at 12
         // tries to join. A block is always exactly size 2, so a 3rd piece must be rejected.
         Piece r1 = new Piece("R1", Colour.RED);
         Piece r2 = new Piece("R2", Colour.RED);
@@ -239,16 +240,16 @@ class RuleEngineTest extends BaseTest {
         // Act
         MoveResult result = classicEngine.validateMove(r3, 3);
 
-        // Assert — joining a full block is not permitted
-        assertFalse(result.isValid());
+        // Assert â€” joining a full block is not permitted
+        Assertions.assertFalse(result.isValid());
     }
 
     // Jumping over a single opponent (Rule 5)
     @Test
     @DisplayName("should_allowMove_when_pieceJumpsOverAnotherPiece")
     void should_allowMove_when_pieceJumpsOverAnotherPiece() {
-        // Arrange — Red at 10 (CW); lone Green at 12 (not a block); roll 5 → target 15
-        // A single opponent piece does not block movement — only a 2-piece block does.
+        // Arrange â€” Red at 10 (CW); lone Green at 12 (not a block); roll 5 â†’ target 15
+        // A single opponent piece does not block movement â€” only a 2-piece block does.
         Piece red = new Piece("R1", Colour.RED);
         red.setState(PieceState.ACTIVE);
         red.moveTo(10);
@@ -264,17 +265,17 @@ class RuleEngineTest extends BaseTest {
         // Act
         MoveResult result = classicEngine.validateMove(red, 5);
 
-        // Assert — Red jumps over the single Green piece unimpeded
-        assertTrue(result.isValid());
-        assertEquals(15, result.getTargetCell());
-        assertFalse(result.isBlockedAtAdjacent());
+        // Assert â€” Red jumps over the single Green piece unimpeded
+        Assertions.assertTrue(result.isValid());
+        Assertions.assertEquals(15, result.getTargetCell());
+        Assertions.assertFalse(result.isBlockedAtAdjacent());
     }
 
     // Mystery cell triggered in Ludo-T (Rule T-11)
     @Test
     @DisplayName("should_triggerMystery_when_pieceLandsOnMysteryCell_inLudoTMode")
     void should_triggerMystery_when_pieceLandsOnMysteryCell_inLudoTMode() {
-        // Arrange — spawn mystery cell, then place Red one step behind it
+        // Arrange â€” spawn mystery cell, then place Red one step behind it
         Piece dummy = new Piece("D1", Colour.GREEN);
         dummy.setState(PieceState.ACTIVE);
         dummy.moveTo(0);
@@ -293,20 +294,20 @@ class RuleEngineTest extends BaseTest {
         red.assignInitialDirection(Direction.CW);
         board.placePiece(red, startPos);
 
-        // Act — roll 1 should land exactly on mystery cell
+        // Act â€” roll 1 should land exactly on mystery cell
         MoveResult result = ludoTEngine.validateMove(red, 1);
 
         // Assert
-        assertTrue(result.isValid());
-        assertTrue(result.isMystery());
+        Assertions.assertTrue(result.isValid());
+        Assertions.assertTrue(result.isMystery());
     }
 
     // Exact roll required inside home straight (Rule 10)
     @Test
     @DisplayName("should_requireExactRoll_when_pieceIsInHomeStraight")
     void should_requireExactRoll_when_pieceIsInHomeStraight() {
-        // Arrange — piece at home-straight position 3; needs exactly 3 more steps to reach HOME.
-        // HOME_EXIT_DISTANCE = 6, so 3+4=7 > 6 → overshoot → invalid.
+        // Arrange â€” piece at home-straight position 3; needs exactly 3 more steps to reach HOME.
+        // HOME_EXIT_DISTANCE = 6, so 3+4=7 > 6 â†’ overshoot â†’ invalid.
         Piece piece = new Piece("R1", Colour.RED);
         piece.setState(PieceState.ACTIVE);
         piece.leaveStandardPathForHomeStraight(3);
@@ -315,17 +316,17 @@ class RuleEngineTest extends BaseTest {
         MoveResult result = classicEngine.validateMove(piece, 4);
 
         // Assert
-        assertFalse(result.isValid());
+        Assertions.assertFalse(result.isValid());
     }
 
     // CCW second approach-pass requirement (Rule T-1)
     @Test
     @DisplayName("should_requireSecondApproachPass_when_movingCounterClockwise")
     void should_requireSecondApproachPass_when_movingCounterClockwise() {
-        // Arrange — Red CCW piece at 26; RED_APPROACH = 24.
+        // Arrange â€” Red CCW piece at 26; RED_APPROACH = 24.
         // CCW distToApproach = (26-24+52)%52 = 2. Roll 3 crosses the approach.
-        // approachPassCount = 0 → passes after this move = 1 < APPROACH_PASS_REQUIRED_CCW (2).
-        // tryEnterHomeStraight returns null → piece moves normally to (26-3+52)%52 = 23.
+        // approachPassCount = 0 â†’ passes after this move = 1 < APPROACH_PASS_REQUIRED_CCW (2).
+        // tryEnterHomeStraight returns null â†’ piece moves normally to (26-3+52)%52 = 23.
         Piece piece = new Piece("R1", Colour.RED);
         piece.setState(PieceState.ACTIVE);
         piece.moveTo(26);
@@ -336,20 +337,20 @@ class RuleEngineTest extends BaseTest {
         // Act
         MoveResult result = ludoTEngine.validateMove(piece, 3);
 
-        // Assert — move is valid but did NOT enter home straight (first pass not yet completed)
-        assertTrue(result.isValid());
-        assertFalse(result.isEnteringHomeStraight());
-        assertEquals(23, result.getTargetCell());
+        // Assert â€” move is valid but did NOT enter home straight (first pass not yet completed)
+        Assertions.assertTrue(result.isValid());
+        Assertions.assertFalse(result.isEnteringHomeStraight());
+        Assertions.assertEquals(23, result.getTargetCell());
     }
 
     // Block direction: longest distance from home (Rule T-4)
     @Test
     @DisplayName("should_moveBlockInDirectionOfLongestDistanceFromHome_when_blockHasMixedDirections")
     void should_moveBlockInDirectionOfLongestDistanceFromHome_when_blockHasMixedDirections() {
-        // Arrange — two Red pieces at position 20 with opposite directions.
+        // Arrange â€” two Red pieces at position 20 with opposite directions.
         // R1 CW: dist = (RED_APPROACH - 20 + 52) % 52 = (24-20+52)%52 = 4
         // R2 CCW: dist = (20 - RED_APPROACH + 52) % 52 = (20-24+52)%52 = 48
-        // R2 is further from home → block should move in R2's direction (CCW).
+        // R2 is further from home â†’ block should move in R2's direction (CCW).
         Piece r1 = new Piece("R1", Colour.RED);
         r1.setState(PieceState.ACTIVE);
         r1.moveTo(20);
@@ -366,14 +367,14 @@ class RuleEngineTest extends BaseTest {
         Direction resolved = classicEngine.resolveBlockDirection(r1, r2, board);
 
         // Assert
-        assertEquals(Direction.CCW, resolved);
+        Assertions.assertEquals(Direction.CCW, resolved);
     }
 
     // Force break block on triple six (Rule T-6)
     @Test
     @DisplayName("should_forceBreakBlock_when_threeConsecutiveSixesRolledWithBlockade")
     void should_forceBreakBlock_when_threeConsecutiveSixesRolledWithBlockade() {
-        // Arrange — Red player with 2 pieces forming a block at position 10.
+        // Arrange â€” Red player with 2 pieces forming a block at position 10.
         // planBlockBreak scatters the 2nd piece by TRIPLE_SIX_BLOCKADE_MOVE = 6 cells.
         RedPlayer red = new RedPlayer();
         Piece r1 = red.getPieces()[0];
@@ -392,11 +393,11 @@ class RuleEngineTest extends BaseTest {
         // Act
         List<BlockBreakMove> moves = classicEngine.planBlockBreak(red);
 
-        // Assert — exactly one piece must be moved (the 2nd piece in the block)
-        assertEquals(1, moves.size());
+        // Assert â€” exactly one piece must be moved (the 2nd piece in the block)
+        Assertions.assertEquals(1, moves.size());
         BlockBreakMove move = moves.get(0);
-        assertEquals(10, move.getFromPos());
-        assertEquals((10 + GameConstants.TRIPLE_SIX_BLOCKADE_MOVE) % GameConstants.BOARD_SIZE,
+        Assertions.assertEquals(10, move.getFromPos());
+        Assertions.assertEquals((10 + GameConstants.TRIPLE_SIX_BLOCKADE_MOVE) % GameConstants.BOARD_SIZE,
                 move.getNewPos());
     }
 
@@ -404,7 +405,7 @@ class RuleEngineTest extends BaseTest {
     @Test
     @DisplayName("should_notApplyEffect_when_pieceLandsOnAlphaBetaGammaWithoutTeleport")
     void should_notApplyEffect_when_pieceLandsOnAlphaBetaGammaWithoutTeleport() {
-        // Arrange — piece moves normally to ALPHA_CELL (no mystery cell present).
+        // Arrange â€” piece moves normally to ALPHA_CELL (no mystery cell present).
         // ALPHA_CELL = 7; place piece 2 steps before it.
         int startPos = (GameConstants.ALPHA_CELL - 2 + GameConstants.BOARD_SIZE) % GameConstants.BOARD_SIZE;
         Piece piece = new Piece("R1", Colour.RED);
@@ -412,22 +413,22 @@ class RuleEngineTest extends BaseTest {
         piece.moveTo(startPos);
         piece.assignInitialDirection(Direction.CW);
         board.placePiece(piece, startPos);
-        // No mystery cell set → board.getMysteryCell() == null
+        // No mystery cell set â†’ board.getMysteryCell() == null
 
         // Act
         MoveResult result = ludoTEngine.validateMove(piece, 2);
 
-        // Assert — valid move landing on alpha but NOT flagged as mystery
-        assertTrue(result.isValid());
-        assertEquals(GameConstants.ALPHA_CELL, result.getTargetCell());
-        assertFalse(result.isMystery());
+        // Assert â€” valid move landing on alpha but NOT flagged as mystery
+        Assertions.assertTrue(result.isValid());
+        Assertions.assertEquals(GameConstants.ALPHA_CELL, result.getTargetCell());
+        Assertions.assertFalse(result.isMystery());
     }
 
     // Mystery cell in CLASSIC mode
     @Test
     @DisplayName("should_notTriggerMystery_when_classicMode")
     void should_notTriggerMystery_when_classicMode() {
-        // Arrange â€” activate mystery cell, then move a piece over it in CLASSIC mode
+        // Arrange Ã¢â‚¬â€ activate mystery cell, then move a piece over it in CLASSIC mode
         Piece dummy = new Piece("D1", Colour.GREEN);
         dummy.setState(PieceState.ACTIVE);
         dummy.moveTo(0);
@@ -446,11 +447,11 @@ class RuleEngineTest extends BaseTest {
         redPiece.moveTo(startPos);
         board.placePiece(redPiece, startPos);
 
-        // Act â€” roll 1 in CLASSIC mode should land on mystery cell but not trigger it
+        // Act Ã¢â‚¬â€ roll 1 in CLASSIC mode should land on mystery cell but not trigger it
         MoveResult result = classicEngine.validateMove(redPiece, 1);
 
         // Assert
-        assertFalse(result.isMystery());
+        Assertions.assertFalse(result.isMystery());
     }
 }
 

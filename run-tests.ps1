@@ -9,7 +9,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 $Root     = $PSScriptRoot
-$SrcTest  = "$Root\src\test\test"
+$SrcTest  = "$Root\src\test"
 $OutMain  = "$Root\out"
 $OutTest  = "$Root\out\test"
 $JunitJar = "$Root\lib\junit-standalone.jar"
@@ -46,7 +46,7 @@ Write-Host "`nRunning tests...`n" -ForegroundColor Cyan
     "--classpath=$OutMain" `
     "--classpath=$OutTest" `
     --scan-class-path `
-    "--include-package=test.test" `
+    "--include-package=test" `
     --details=tree
 
 exit $LASTEXITCODE

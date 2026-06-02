@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import enums.Colour;
 import enums.Direction;
@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Piece")
@@ -26,44 +27,44 @@ class PieceTest extends BaseTest {
     @Test
     @DisplayName("should_startAtBasePosition_when_newlyCreated")
     void should_startAtBasePosition_when_newlyCreated() {
-        // Assert — BASE_POSITION was merged into NO_POSITION; both equal -1.
+        // Assert â€” BASE_POSITION was merged into NO_POSITION; both equal -1.
         // PieceState.BASE distinguishes "at base" from "at home" at the domain level.
-        assertEquals(GameConstants.NO_POSITION, piece.getPosition());
+        Assertions.assertEquals(GameConstants.NO_POSITION, piece.getPosition());
     }
 
     @Test
     @DisplayName("should_haveBaseState_when_newlyCreated")
     void should_haveBaseState_when_newlyCreated() {
         // Assert
-        assertEquals(PieceState.BASE, piece.getState());
+        Assertions.assertEquals(PieceState.BASE, piece.getState());
     }
 
     @Test
     @DisplayName("should_haveClockwiseDirection_when_newlyCreated")
     void should_haveClockwiseDirection_when_newlyCreated() {
         // Assert
-        assertEquals(Direction.CW, piece.getDirection());
+        Assertions.assertEquals(Direction.CW, piece.getDirection());
     }
 
     @Test
     @DisplayName("should_haveZeroCaptureCount_when_newlyCreated")
     void should_haveZeroCaptureCount_when_newlyCreated() {
         // Assert
-        assertEquals(0, piece.getCaptureCount());
+        Assertions.assertEquals(0, piece.getCaptureCount());
     }
 
     @Test
     @DisplayName("should_haveNoEffect_when_newlyCreated")
     void should_haveNoEffect_when_newlyCreated() {
         // Assert
-        assertEquals(PieceEffect.NONE, piece.getActiveEffect());
+        Assertions.assertEquals(PieceEffect.NONE, piece.getActiveEffect());
     }
 
     @Test
     @DisplayName("should_haveZeroApproachPassCount_when_newlyCreated")
     void should_haveZeroApproachPassCount_when_newlyCreated() {
         // Assert
-        assertEquals(0, piece.getApproachPassCount());
+        Assertions.assertEquals(0, piece.getApproachPassCount());
     }
 
     // reset()
@@ -78,7 +79,7 @@ class PieceTest extends BaseTest {
         piece.reset();
 
         // Assert
-        assertEquals(GameConstants.NO_POSITION, piece.getPosition());
+        Assertions.assertEquals(GameConstants.NO_POSITION, piece.getPosition());
     }
 
     @Test
@@ -91,7 +92,7 @@ class PieceTest extends BaseTest {
         piece.reset();
 
         // Assert
-        assertEquals(PieceState.BASE, piece.getState());
+        Assertions.assertEquals(PieceState.BASE, piece.getState());
     }
 
     @Test
@@ -104,7 +105,7 @@ class PieceTest extends BaseTest {
         piece.reset();
 
         // Assert
-        assertEquals(PieceEffect.NONE, piece.getActiveEffect());
+        Assertions.assertEquals(PieceEffect.NONE, piece.getActiveEffect());
     }
 
     @Test
@@ -118,7 +119,7 @@ class PieceTest extends BaseTest {
         piece.reset();
 
         // Assert
-        assertEquals(0, piece.getApproachPassCount());
+        Assertions.assertEquals(0, piece.getApproachPassCount());
     }
 
     @Test
@@ -131,7 +132,7 @@ class PieceTest extends BaseTest {
         piece.reset();
 
         // Assert
-        assertEquals(Direction.CW, piece.getDirection());
+        Assertions.assertEquals(Direction.CW, piece.getDirection());
     }
 
     // canEnterHomeStraight()
@@ -139,7 +140,7 @@ class PieceTest extends BaseTest {
     @DisplayName("should_returnFalse_when_captureCountIsZero")
     void should_returnFalse_when_captureCountIsZero() {
         // Assert
-        assertFalse(piece.canEnterHomeStraight());
+        Assertions.assertFalse(piece.canEnterHomeStraight());
     }
 
     @Test
@@ -149,14 +150,14 @@ class PieceTest extends BaseTest {
         piece.capture();
 
         // Assert
-        assertTrue(piece.canEnterHomeStraight());
+        Assertions.assertTrue(piece.canEnterHomeStraight());
     }
 
     // Full capture reset (Rule T-9)
     @Test
     @DisplayName("should_resetAllPieceInfo_when_pieceIsCaptured")
     void should_resetAllPieceInfo_when_pieceIsCaptured() {
-        // Arrange — piece in the middle of a game: active on board with effects and history.
+        // Arrange â€” piece in the middle of a game: active on board with effects and history.
         piece.setState(PieceState.ACTIVE);
         piece.moveTo(25);
         piece.assignInitialDirection(Direction.CCW);
@@ -165,19 +166,19 @@ class PieceTest extends BaseTest {
         piece.incrementApproachPass();
         piece.setHomeStraightPosition(2);
 
-        // Act — reset() is called by TurnExecutor when the piece is captured
+        // Act â€” reset() is called by TurnExecutor when the piece is captured
         piece.reset();
 
-        // Assert — every field must be back to its newly-constructed default
-        assertEquals(GameConstants.NO_POSITION, piece.getPosition());
-        assertEquals(PieceState.BASE, piece.getState());
-        assertEquals(Direction.CW, piece.getDirection());
-        assertEquals(Direction.CW, piece.getOriginalDirection());
-        assertEquals(0, piece.getCaptureCount());
-        assertEquals(PieceEffect.NONE, piece.getActiveEffect());
-        assertEquals(0, piece.getEffectRoundsLeft());
-        assertEquals(0, piece.getApproachPassCount());
-        assertEquals(0, piece.getHomeStraightPosition());
+        // Assert â€” every field must be back to its newly-constructed default
+        Assertions.assertEquals(GameConstants.NO_POSITION, piece.getPosition());
+        Assertions.assertEquals(PieceState.BASE, piece.getState());
+        Assertions.assertEquals(Direction.CW, piece.getDirection());
+        Assertions.assertEquals(Direction.CW, piece.getOriginalDirection());
+        Assertions.assertEquals(0, piece.getCaptureCount());
+        Assertions.assertEquals(PieceEffect.NONE, piece.getActiveEffect());
+        Assertions.assertEquals(0, piece.getEffectRoundsLeft());
+        Assertions.assertEquals(0, piece.getApproachPassCount());
+        Assertions.assertEquals(0, piece.getHomeStraightPosition());
     }
 
     // getEffectiveRoll()
@@ -191,7 +192,7 @@ class PieceTest extends BaseTest {
         int effective = piece.getEffectiveRoll(3);
 
         // Assert
-        assertEquals(6, effective);
+        Assertions.assertEquals(6, effective);
     }
 
     @Test
@@ -204,7 +205,7 @@ class PieceTest extends BaseTest {
         int effective = piece.getEffectiveRoll(4);
 
         // Assert
-        assertEquals(2, effective);
+        Assertions.assertEquals(2, effective);
     }
 
     @Test
@@ -214,7 +215,7 @@ class PieceTest extends BaseTest {
         int effective = piece.getEffectiveRoll(5);
 
         // Assert
-        assertEquals(5, effective);
+        Assertions.assertEquals(5, effective);
     }
 
     // tickEffectCountdown()
@@ -228,7 +229,7 @@ class PieceTest extends BaseTest {
         piece.tickEffectCountdown();
 
         // Assert
-        assertEquals(GameConstants.EFFECT_DURATION - 1, piece.getEffectRoundsLeft());
+        Assertions.assertEquals(GameConstants.EFFECT_DURATION - 1, piece.getEffectRoundsLeft());
     }
 
     @Test
@@ -243,19 +244,19 @@ class PieceTest extends BaseTest {
         }
 
         // Assert
-        assertEquals(PieceEffect.NONE, piece.getActiveEffect());
+        Assertions.assertEquals(PieceEffect.NONE, piece.getActiveEffect());
     }
 
     @Test
     @DisplayName("should_notTickBelowZero_when_noEffectActive")
     void should_notTickBelowZero_when_noEffectActive() {
-        // Arrange â€” piece has no effect
+        // Arrange Ã¢â‚¬â€ piece has no effect
 
         // Act
         piece.tickEffectCountdown();
 
         // Assert
-        assertEquals(0, piece.getEffectRoundsLeft());
+        Assertions.assertEquals(0, piece.getEffectRoundsLeft());
     }
 }
 

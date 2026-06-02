@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import enums.Colour;
 import enums.PieceState;
@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("MysteryCell")
@@ -28,14 +29,14 @@ class MysteryCellTest extends BaseTest {
     @Test
     @DisplayName("should_notSpawn_when_noPiecesAreOnStandardPath")
     void should_notSpawn_when_noPiecesAreOnStandardPath() {
-        // Arrange â€” board is empty
+        // Arrange Ã¢â‚¬â€ board is empty
 
         // Act
         boolean spawned = mysteryCell.spawn(board);
 
         // Assert
-        assertFalse(spawned);
-        assertFalse(mysteryCell.isActive());
+        Assertions.assertFalse(spawned);
+        Assertions.assertFalse(mysteryCell.isActive());
     }
 
     @Test
@@ -51,14 +52,14 @@ class MysteryCellTest extends BaseTest {
         boolean spawned = mysteryCell.spawn(board);
 
         // Assert
-        assertTrue(spawned);
-        assertTrue(mysteryCell.isActive());
+        Assertions.assertTrue(spawned);
+        Assertions.assertTrue(mysteryCell.isActive());
     }
 
     @Test
     @DisplayName("should_neverSpawnOnOccupiedCell_when_spawning")
     void should_neverSpawnOnOccupiedCell_when_spawning() {
-        // Arrange â€” fill cells 0-10 with pieces so mystery must avoid them
+        // Arrange Ã¢â‚¬â€ fill cells 0-10 with pieces so mystery must avoid them
         Piece[] pieces = new Piece[11];
         for (int i = 0; i <= 10; i++) {
             pieces[i] = new Piece("P" + i, Colour.RED);
@@ -72,7 +73,7 @@ class MysteryCellTest extends BaseTest {
 
         // Assert
         int spawnedAt = mysteryCell.getPosition();
-        assertTrue(spawnedAt < 0 || !board.isOccupied(spawnedAt),
+        Assertions.assertTrue(spawnedAt < 0 || !board.isOccupied(spawnedAt),
                 "Mystery cell spawned on occupied cell " + spawnedAt);
     }
 
@@ -92,7 +93,7 @@ class MysteryCellTest extends BaseTest {
         mysteryCell.tick(board);
 
         // Assert
-        assertEquals(before - 1, mysteryCell.getRoundsRemaining());
+        Assertions.assertEquals(before - 1, mysteryCell.getRoundsRemaining());
     }
 
     @Test
@@ -105,14 +106,14 @@ class MysteryCellTest extends BaseTest {
         board.placePiece(dummy, 5);
         mysteryCell.spawn(board);
 
-        // Act â€” tick down to zero
+        // Act Ã¢â‚¬â€ tick down to zero
         for (int i = 0; i < GameConstants.MYSTERY_CELL_DURATION; i++) {
             mysteryCell.tick(board);
         }
 
         // Assert  mystery cell either relocated (active) or no empty cell found (inactive);
-        // either way, roundsRemaining was reset or mystery deactivated â€” not still counting down.
-        assertTrue(mysteryCell.getRoundsRemaining() == GameConstants.MYSTERY_CELL_DURATION
+        // either way, roundsRemaining was reset or mystery deactivated Ã¢â‚¬â€ not still counting down.
+        Assertions.assertTrue(mysteryCell.getRoundsRemaining() == GameConstants.MYSTERY_CELL_DURATION
                    || !mysteryCell.isActive());
     }
 
@@ -136,7 +137,7 @@ class MysteryCellTest extends BaseTest {
         int secondPosition = mysteryCell.getPosition();
         // If the mystery is still active it must have moved to a different cell
         if (mysteryCell.isActive()) {
-            assertNotEquals(firstPosition, secondPosition);
+            Assertions.assertNotEquals(firstPosition, secondPosition);
         }
     }
 }

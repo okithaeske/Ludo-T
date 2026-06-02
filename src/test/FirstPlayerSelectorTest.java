@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import engine.FirstPlayerSelector;
 import engine.TurnManager;
@@ -15,6 +15,7 @@ import player.YellowPlayer;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("FirstPlayerSelector")
@@ -35,7 +36,7 @@ class FirstPlayerSelectorTest extends BaseTest {
         yellow = new YellowPlayer();
         blue   = new BluePlayer();
         turnManager = new TurnManager(List.of(red, green, yellow, blue));
-        publisher   = new GameEventPublisher(); // no listeners — events discarded
+        publisher   = new GameEventPublisher(); // no listeners â€” events discarded
     }
 
     @Test
@@ -48,14 +49,14 @@ class FirstPlayerSelectorTest extends BaseTest {
         // Act
         AbstractPlayer first = selector.selectFirstPlayer();
 
-        // Assert — must be one of the four players
-        assertTrue(first == red || first == green || first == yellow || first == blue);
+        // Assert â€” must be one of the four players
+        Assertions.assertTrue(first == red || first == green || first == yellow || first == blue);
     }
 
     @Test
     @DisplayName("should_returnSamePlayerForSameSeed_when_noTie")
     void should_returnSamePlayerForSameSeed_when_noTie() {
-        // Arrange — run twice with the same seed; must get the same winner
+        // Arrange â€” run twice with the same seed; must get the same winner
         RandomInitiator.getInstance().setSeed(42L);
         AbstractPlayer first1 = new FirstPlayerSelector(
                 List.of(red, green, yellow, blue), turnManager, publisher)
@@ -67,13 +68,13 @@ class FirstPlayerSelectorTest extends BaseTest {
                 .selectFirstPlayer();
 
         // Assert
-        assertSame(first1, first2);
+        Assertions.assertSame(first1, first2);
     }
 
     @Test
     @DisplayName("should_breakTie_when_twoPlayersRollSame")
     void should_breakTie_when_twoPlayersRollSame() {
-        // Arrange — two-player scenario so a tie is more likely
+        // Arrange â€” two-player scenario so a tie is more likely
         TurnManager tm2    = new TurnManager(List.of(red, green));
         FirstPlayerSelector selector =
                 new FirstPlayerSelector(List.of(red, green), tm2, publisher);
@@ -81,9 +82,9 @@ class FirstPlayerSelectorTest extends BaseTest {
         // Act
         AbstractPlayer winner = selector.selectFirstPlayer();
 
-        // Assert — exactly one winner, must be red or green
-        assertNotNull(winner);
-        assertTrue(winner == red || winner == green);
+        // Assert â€” exactly one winner, must be red or green
+        Assertions.assertNotNull(winner);
+        Assertions.assertTrue(winner == red || winner == green);
     }
 
     @Test
@@ -98,6 +99,6 @@ class FirstPlayerSelectorTest extends BaseTest {
         AbstractPlayer winner = selector.selectFirstPlayer();
 
         // Assert
-        assertSame(red, winner);
+        Assertions.assertSame(red, winner);
     }
 }

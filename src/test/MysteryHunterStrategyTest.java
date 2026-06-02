@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import enums.Colour;
 import enums.Direction;
@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("MysteryHunterStrategy (Blue)")
@@ -59,23 +60,23 @@ class MysteryHunterStrategyTest extends BaseTest {
     @Test
     @DisplayName("should_exitBase_when_rollIsSixAndBasePieceExists")
     void should_exitBase_when_rollIsSixAndBasePieceExists() {
-        // Arrange â€” all pieces at BASE (default)
+        // Arrange Ã¢â‚¬â€ all pieces at BASE (default)
         PieceSelectionStrategy strategy = new MysteryHunterStrategy(blue);
 
         // Act
         Piece selected = strategy.choosePiece(GameConstants.MAX_DICE_ROLL, board);
 
         // Assert
-        assertFalse(selected.isNull());
-        assertEquals(PieceState.BASE, selected.getState());
+        Assertions.assertFalse(selected.isNull());
+        Assertions.assertEquals(PieceState.BASE, selected.getState());
     }
 
     // CCW targets mystery
     @Test
     @DisplayName("should_selectCCWPiece_when_itIsHeadingTowardsMysteryCell")
     void should_selectCCWPiece_when_itIsHeadingTowardsMysteryCell() {
-        // Arrange â€” spawn mystery at M, then place Blue piece 10 steps ahead of M in CCW.
-        // CCW distance from piece to M = (piece_pos - M + 52) % 52 = 10 â‰¤ 26 â†’ heading towards.
+        // Arrange Ã¢â‚¬â€ spawn mystery at M, then place Blue piece 10 steps ahead of M in CCW.
+        // CCW distance from piece to M = (piece_pos - M + 52) % 52 = 10 Ã¢â€°Â¤ 26 Ã¢â€ â€™ heading towards.
         int mysteryPos = spawnMystery();
         int piecePos = (mysteryPos + 10) % GameConstants.BOARD_SIZE;
         // Make sure piece doesn't land on the anchor piece at 0
@@ -88,7 +89,7 @@ class MysteryHunterStrategyTest extends BaseTest {
         Piece selected = strategy.choosePiece(1, board);
 
         // Assert
-        assertEquals(bluePiece, selected);
+        Assertions.assertEquals(bluePiece, selected);
     }
 
     // CW avoids mystery
@@ -97,8 +98,8 @@ class MysteryHunterStrategyTest extends BaseTest {
     void should_avoidMysteryCell_when_CWPieceWouldLandOnIt() {
         // Arrange:
         //   Spawn mystery at M.
-        //   B1 (CW) at (M - 1 + 52) % 52 â€” with roll 1 it lands exactly on M.
-        //   B2 (CW) at (M + 5) % 52    â€” with roll 1 it lands at M+6, safely away.
+        //   B1 (CW) at (M - 1 + 52) % 52 Ã¢â‚¬â€ with roll 1 it lands exactly on M.
+        //   B2 (CW) at (M + 5) % 52    Ã¢â‚¬â€ with roll 1 it lands at M+6, safely away.
         // Strategy should skip B1 and return B2.
         int mysteryPos = spawnMystery();
 
@@ -117,9 +118,9 @@ class MysteryHunterStrategyTest extends BaseTest {
         // Act
         Piece selected = strategy.choosePiece(1, board);
 
-        // Assert â€” B1 is avoided; B2 (or any non-mystery-landing piece) is returned
-        assertNotEquals(blue.getPieces()[0], selected);
-        assertFalse(selected.isNull());
+        // Assert Ã¢â‚¬â€ B1 is avoided; B2 (or any non-mystery-landing piece) is returned
+        Assertions.assertNotEquals(blue.getPieces()[0], selected);
+        Assertions.assertFalse(selected.isNull());
     }
 
     // Round-robin cycling
@@ -128,7 +129,7 @@ class MysteryHunterStrategyTest extends BaseTest {
     void should_cycleToNextPiece_when_calledConsecutively() {
         // Arrange:
         //   Spawn mystery at M.
-        //   Both B1 and B2 are CCW, 10 and 15 steps ahead of M â€” both target mystery.
+        //   Both B1 and B2 are CCW, 10 and 15 steps ahead of M Ã¢â‚¬â€ both target mystery.
         //   Strategy should yield B1, then B2, then B1 again (cycle).
         int mysteryPos = spawnMystery();
 
@@ -148,10 +149,10 @@ class MysteryHunterStrategyTest extends BaseTest {
         Piece second = strategy.choosePiece(1, board);
         Piece third  = strategy.choosePiece(1, board);
 
-        // Assert â€” pieces alternate in round-robin fashion
-        assertEquals(b1, first);
-        assertEquals(b2, second);
-        assertEquals(b1, third);
+        // Assert Ã¢â‚¬â€ pieces alternate in round-robin fashion
+        Assertions.assertEquals(b1, first);
+        Assertions.assertEquals(b2, second);
+        Assertions.assertEquals(b1, third);
     }
 }
 

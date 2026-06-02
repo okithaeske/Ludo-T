@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import engine.WinTracker;
 import enums.PieceState;
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("WinTracker")
@@ -55,19 +56,19 @@ class WinTrackerTest extends BaseTest {
         winTracker.checkWinCondition(p1);
 
         // Assert
-        assertTrue(winTracker.getFinishingOrder().contains(p1));
+        Assertions.assertTrue(winTracker.getFinishingOrder().contains(p1));
     }
 
     @Test
     @DisplayName("should_notAddPlayer_when_notAllPiecesAreHome")
     void should_notAddPlayer_when_notAllPiecesAreHome() {
-        // Arrange â€” p1 has not finished (default state = BASE)
+        // Arrange Ã¢â‚¬â€ p1 has not finished (default state = BASE)
 
         // Act
         winTracker.checkWinCondition(p1);
 
         // Assert
-        assertFalse(winTracker.getFinishingOrder().contains(p1));
+        Assertions.assertFalse(winTracker.getFinishingOrder().contains(p1));
     }
 
     // Game-over trigger
@@ -86,8 +87,8 @@ class WinTrackerTest extends BaseTest {
         boolean gameOver = winTracker.checkWinCondition(p3);
 
         // Assert
-        assertTrue(gameOver);
-        assertTrue(winTracker.isGameOver());
+        Assertions.assertTrue(gameOver);
+        Assertions.assertTrue(winTracker.isGameOver());
     }
 
     // Fourth-place auto-assignment
@@ -103,9 +104,9 @@ class WinTrackerTest extends BaseTest {
         winTracker.checkWinCondition(p2);
         winTracker.checkWinCondition(p3);
 
-        // Assert â€” all four players must appear in finishing order
-        assertEquals(GameConstants.NUM_PLAYERS, winTracker.getFinishingOrder().size());
-        assertTrue(winTracker.getFinishingOrder().contains(p4));
+        // Assert Ã¢â‚¬â€ all four players must appear in finishing order
+        Assertions.assertEquals(GameConstants.NUM_PLAYERS, winTracker.getFinishingOrder().size());
+        Assertions.assertTrue(winTracker.getFinishingOrder().contains(p4));
     }
 }
 

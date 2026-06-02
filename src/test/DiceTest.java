@@ -1,9 +1,10 @@
-package test.test;
+package test;
 
 import model.Dice;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Dice")
@@ -18,7 +19,7 @@ class DiceTest extends BaseTest {
         // Act + Assert
         for (int i = 0; i < 1000; i++) {
             int roll = dice.roll();
-            assertTrue(roll >= 1 && roll <= 6,
+            Assertions.assertTrue(roll >= 1 && roll <= 6,
                     "Roll " + roll + " is outside the valid range [1, 6]");
         }
     }

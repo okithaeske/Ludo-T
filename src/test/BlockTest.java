@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import enums.Colour;
 import enums.Direction;
@@ -8,6 +8,7 @@ import model.Piece;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Block")
@@ -23,7 +24,7 @@ class BlockTest extends BaseTest {
         block.addPiece(new Piece("R2", Colour.RED));
 
         // Assert
-        assertEquals(2, block.getSize());
+        Assertions.assertEquals(2, block.getSize());
     }
 
     @Test
@@ -33,7 +34,7 @@ class BlockTest extends BaseTest {
         Block block = new Block(10, Direction.CW);
 
         // Assert
-        assertEquals(0, block.getSize());
+        Assertions.assertEquals(0, block.getSize());
     }
 
     // canBeCaptured()
@@ -50,14 +51,14 @@ class BlockTest extends BaseTest {
         attacker.addPiece(new Piece("R2", Colour.RED));
 
         // Assert
-        assertTrue(defender.canBeCaptured(attacker));
+        Assertions.assertTrue(defender.canBeCaptured(attacker));
     }
 
     // breakBlock() direction restore (Rule T-5)
     @Test
     @DisplayName("should_restoreOriginalDirection_when_blockIsBroken")
     void should_restoreOriginalDirection_when_blockIsBroken() {
-        // Arrange — piece assigned CCW as original direction, then temporarily redirected CW
+        // Arrange â€” piece assigned CCW as original direction, then temporarily redirected CW
         // (simulating a Gamma teleport that flipped the direction while in a block).
         Piece piece = new Piece("R1", Colour.RED);
         piece.setState(PieceState.ACTIVE);
@@ -70,9 +71,9 @@ class BlockTest extends BaseTest {
         // Act
         block.breakBlock(piece);
 
-        // Assert — direction must be restored to the original CCW
-        assertEquals(Direction.CCW, piece.getDirection());
-        assertEquals(0, block.getSize());
+        // Assert â€” direction must be restored to the original CCW
+        Assertions.assertEquals(Direction.CCW, piece.getDirection());
+        Assertions.assertEquals(0, block.getSize());
     }
 
     @Test
@@ -87,7 +88,7 @@ class BlockTest extends BaseTest {
         attacker.addPiece(new Piece("R1", Colour.RED));
 
         // Assert
-        assertFalse(defender.canBeCaptured(attacker));
+        Assertions.assertFalse(defender.canBeCaptured(attacker));
     }
 }
 

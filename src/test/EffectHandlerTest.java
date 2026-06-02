@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import engine.EffectHandler;
 import engine.RuleEngine;
@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("EffectHandler")
@@ -56,7 +57,7 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.performCoinToss(piece);
 
         // Assert both fields must be set to the same value
-        assertEquals(piece.getDirection(), piece.getOriginalDirection());
+        Assertions.assertEquals(piece.getDirection(), piece.getOriginalDirection());
     }
 
     @Test
@@ -77,7 +78,7 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.performCoinToss(piece);
 
         // Assert
-        assertEquals(expected, piece.getDirection());
+        Assertions.assertEquals(expected, piece.getDirection());
     }
 
     // GAMMA teleport with CW piece
@@ -98,7 +99,7 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.handleTeleport(piece, result);
 
         // Assert
-        assertEquals(Direction.CCW, piece.getDirection());
+        Assertions.assertEquals(Direction.CCW, piece.getDirection());
     }
 
     @Test
@@ -118,7 +119,7 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.handleTeleport(piece, result);
 
         // Assert
-        assertEquals(GameConstants.GAMMA_CELL, piece.getPosition());
+        Assertions.assertEquals(GameConstants.GAMMA_CELL, piece.getPosition());
     }
 
     // GAMMA teleport with CCW piece redirect to BETA
@@ -139,7 +140,7 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.handleTeleport(piece, result);
 
         // Assert redirected to BETA, so piece is at BETA_CELL
-        assertEquals(GameConstants.BETA_CELL, piece.getPosition());
+        Assertions.assertEquals(GameConstants.BETA_CELL, piece.getPosition());
     }
 
     @Test
@@ -158,15 +159,15 @@ class EffectHandlerTest extends BaseTest {
         // Act
         effectHandler.handleTeleport(piece, result);
 
-        // Assert â€” BETA applies FROZEN
-        assertEquals(PieceEffect.FROZEN, piece.getActiveEffect());
+        // Assert Ã¢â‚¬â€ BETA applies FROZEN
+        Assertions.assertEquals(PieceEffect.FROZEN, piece.getActiveEffect());
     }
 
-    // Teleport onto full friendly block → piece sent to base
+    // Teleport onto full friendly block â†’ piece sent to base
     @Test
     @DisplayName("should_returnToBase_when_teleportLandsOnFullFriendlyBlock")
     void should_returnToBase_when_teleportLandsOnFullFriendlyBlock() {
-        // Arrange — two friendly Red pieces already form a block at BETA_CELL.
+        // Arrange â€” two friendly Red pieces already form a block at BETA_CELL.
         Piece blocker1 = new Piece("R2", Colour.RED);
         Piece blocker2 = new Piece("R3", Colour.RED);
         blocker1.setState(PieceState.ACTIVE);
@@ -184,15 +185,15 @@ class EffectHandlerTest extends BaseTest {
         // Act
         effectHandler.handleTeleport(piece, result);
 
-        // Assert — cannot join the full block; piece returned to base
-        assertEquals(PieceState.BASE, piece.getState());
+        // Assert â€” cannot join the full block; piece returned to base
+        Assertions.assertEquals(PieceState.BASE, piece.getState());
     }
 
-    // Alpha teleport — ENERGISED (Rule T-12)
+    // Alpha teleport â€” ENERGISED (Rule T-12)
     @Test
     @DisplayName("should_energisePiece_when_teleportedToAlpha")
     void should_energisePiece_when_teleportedToAlpha() {
-        // Arrange — force seed so resolveAlphaEffect() returns ENERGISED (nextInt(2) = 0).
+        // Arrange â€” force seed so resolveAlphaEffect() returns ENERGISED (nextInt(2) = 0).
         forceSeedForAlpha(0);
         Piece piece = buildActivePieceAt(Direction.CW, 10);
 
@@ -203,15 +204,15 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.handleTeleport(piece, result);
 
         // Assert
-        assertEquals(PieceEffect.ENERGISED, piece.getActiveEffect());
-        assertEquals(GameConstants.ALPHA_CELL, piece.getPosition());
+        Assertions.assertEquals(PieceEffect.ENERGISED, piece.getActiveEffect());
+        Assertions.assertEquals(GameConstants.ALPHA_CELL, piece.getPosition());
     }
 
-    // Alpha teleport — SICK (Rule T-12)
+    // Alpha teleport â€” SICK (Rule T-12)
     @Test
     @DisplayName("should_sickenPiece_when_teleportedToAlpha")
     void should_sickenPiece_when_teleportedToAlpha() {
-        // Arrange — force seed so resolveAlphaEffect() returns SICK (nextInt(2) = 1).
+        // Arrange â€” force seed so resolveAlphaEffect() returns SICK (nextInt(2) = 1).
         forceSeedForAlpha(1);
         Piece piece = buildActivePieceAt(Direction.CW, 10);
 
@@ -222,10 +223,10 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.handleTeleport(piece, result);
 
         // Assert
-        assertEquals(PieceEffect.SICK, piece.getActiveEffect());
+        Assertions.assertEquals(PieceEffect.SICK, piece.getActiveEffect());
     }
 
-    // Beta teleport — FROZEN for four rounds (Rule T-13)
+    // Beta teleport â€” FROZEN for four rounds (Rule T-13)
     @Test
     @DisplayName("should_freezePieceForFourRounds_when_teleportedToBeta")
     void should_freezePieceForFourRounds_when_teleportedToBeta() {
@@ -239,16 +240,16 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.handleTeleport(piece, result);
 
         // Assert
-        assertEquals(PieceEffect.FROZEN, piece.getActiveEffect());
-        assertEquals(GameConstants.EFFECT_DURATION, piece.getEffectRoundsLeft());
-        assertEquals(GameConstants.BETA_CELL, piece.getPosition());
+        Assertions.assertEquals(PieceEffect.FROZEN, piece.getActiveEffect());
+        Assertions.assertEquals(GameConstants.EFFECT_DURATION, piece.getEffectRoundsLeft());
+        Assertions.assertEquals(GameConstants.BETA_CELL, piece.getPosition());
     }
 
     // Frozen escape on triple three (Rule T-13)
     @Test
     @DisplayName("should_teleportToBase_when_frozenPieceRollsThreeConsecutively")
     void should_teleportToBase_when_frozenPieceRollsThreeConsecutively() {
-        // Arrange — freeze a piece, then simulate three consecutive 3-rolls for the player.
+        // Arrange â€” freeze a piece, then simulate three consecutive 3-rolls for the player.
         Piece frozen = player.getPieces()[0];
         frozen.applyEffect(PieceEffect.FROZEN);
         frozen.setState(PieceState.ACTIVE);
@@ -260,14 +261,14 @@ class EffectHandlerTest extends BaseTest {
             forceRoll(3);
             turnManager.rollDice(player);
         }
-        assertTrue(effectHandler.isFrozenEscape(player));
+        Assertions.assertTrue(effectHandler.isFrozenEscape(player));
 
         // Act
         effectHandler.handleFrozenEscape(player);
 
-        // Assert — piece returned to base
-        assertEquals(GameConstants.NO_POSITION, frozen.getPosition());
-        assertEquals(PieceState.BASE, frozen.getState());
+        // Assert â€” piece returned to base
+        Assertions.assertEquals(GameConstants.NO_POSITION, frozen.getPosition());
+        Assertions.assertEquals(PieceState.BASE, frozen.getState());
     }
 
     // Frozen piece tick
@@ -286,7 +287,7 @@ class EffectHandlerTest extends BaseTest {
         effectHandler.tickFrozenPiece(player);
 
         // Assert
-        assertEquals(before - 1, frozenPiece.getEffectRoundsLeft());
+        Assertions.assertEquals(before - 1, frozenPiece.getEffectRoundsLeft());
     }
 
     // Helpers
@@ -309,7 +310,7 @@ class EffectHandlerTest extends BaseTest {
                 return;
             }
         }
-        fail("Could not find a seed for alpha target " + target);
+        Assertions.fail("Could not find a seed for alpha target " + target);
     }
 
     /** Forces the RNG so the next dice roll equals {@code desiredRoll}. */
@@ -321,7 +322,7 @@ class EffectHandlerTest extends BaseTest {
                 return;
             }
         }
-        fail("Could not find a seed for roll " + desiredRoll);
+        Assertions.fail("Could not find a seed for roll " + desiredRoll);
     }
 }
 

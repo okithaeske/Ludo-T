@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import enums.Colour;
 import player.AbstractPlayer;
@@ -10,6 +10,7 @@ import player.YellowPlayer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("PlayerFactory")
@@ -22,7 +23,7 @@ class PlayerFactoryTest extends BaseTest {
         AbstractPlayer player = PlayerFactory.createPlayer(Colour.RED);
 
         // Assert
-        assertInstanceOf(RedPlayer.class, player);
+        Assertions.assertInstanceOf(RedPlayer.class, player);
     }
 
     @Test
@@ -32,7 +33,7 @@ class PlayerFactoryTest extends BaseTest {
         AbstractPlayer player = PlayerFactory.createPlayer(Colour.GREEN);
 
         // Assert
-        assertInstanceOf(GreenPlayer.class, player);
+        Assertions.assertInstanceOf(GreenPlayer.class, player);
     }
 
     @Test
@@ -42,7 +43,7 @@ class PlayerFactoryTest extends BaseTest {
         AbstractPlayer player = PlayerFactory.createPlayer(Colour.YELLOW);
 
         // Assert
-        assertInstanceOf(YellowPlayer.class, player);
+        Assertions.assertInstanceOf(YellowPlayer.class, player);
     }
 
     @Test
@@ -52,14 +53,14 @@ class PlayerFactoryTest extends BaseTest {
         AbstractPlayer player = PlayerFactory.createPlayer(Colour.BLUE);
 
         // Assert
-        assertInstanceOf(BluePlayer.class, player);
+        Assertions.assertInstanceOf(BluePlayer.class, player);
     }
 
     @Test
     @DisplayName("should_throwIllegalArgumentException_when_colourIsNone")
     void should_throwIllegalArgumentException_when_colourIsNone() {
         // Act + Assert
-        assertThrows(IllegalArgumentException.class,
+        Assertions.assertThrows(IllegalArgumentException.class,
                 () -> PlayerFactory.createPlayer(Colour.NONE));
     }
 }

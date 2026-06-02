@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import enums.PieceState;
 import model.Piece;
@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("AbstractPlayer")
@@ -25,21 +26,21 @@ class AbstractPlayerTest extends BaseTest {
     @Test
     @DisplayName("should_returnEmptyList_when_allPiecesAreAtBase")
     void should_returnEmptyList_when_allPiecesAreAtBase() {
-        // Arrange â€” all pieces default to BASE
+        // Arrange Ã¢â‚¬â€ all pieces default to BASE
 
         // Assert
-        assertTrue(player.getPiecesOnBoard().isEmpty());
+        Assertions.assertTrue(player.getPiecesOnBoard().isEmpty());
     }
 
     @Test
     @DisplayName("should_returnOnlyActivePieces_when_getPiecesOnBoardCalled")
     void should_returnOnlyActivePieces_when_getPiecesOnBoardCalled() {
-        // Arrange â€” activate pieces[0], leave rest at BASE
+        // Arrange Ã¢â‚¬â€ activate pieces[0], leave rest at BASE
         player.getPieces()[0].setState(PieceState.ACTIVE);
 
         // Assert
-        assertEquals(1, player.getPiecesOnBoard().size());
-        assertTrue(player.getPiecesOnBoard().contains(player.getPieces()[0]));
+        Assertions.assertEquals(1, player.getPiecesOnBoard().size());
+        Assertions.assertTrue(player.getPiecesOnBoard().contains(player.getPieces()[0]));
     }
 
     //getPiecesAtBase
@@ -50,18 +51,18 @@ class AbstractPlayerTest extends BaseTest {
         // Arrange all pieces default to BASE
 
         // Assert
-        assertEquals(4, player.getPiecesAtBase().size());
+        Assertions.assertEquals(4, player.getPiecesAtBase().size());
     }
 
     @Test
     @DisplayName("should_excludeActivePieces_when_getPiecesAtBaseCalled")
     void should_excludeActivePieces_when_getPiecesAtBaseCalled() {
-        // Arrange â€” move one piece to ACTIVE
+        // Arrange Ã¢â‚¬â€ move one piece to ACTIVE
         player.getPieces()[0].setState(PieceState.ACTIVE);
 
         // Assert
-        assertEquals(3, player.getPiecesAtBase().size());
-        assertFalse(player.getPiecesAtBase().contains(player.getPieces()[0]));
+        Assertions.assertEquals(3, player.getPiecesAtBase().size());
+        Assertions.assertFalse(player.getPiecesAtBase().contains(player.getPieces()[0]));
     }
 
     // allHome
@@ -75,7 +76,7 @@ class AbstractPlayerTest extends BaseTest {
         }
 
         // Assert
-        assertTrue(player.allHome());
+        Assertions.assertTrue(player.allHome());
     }
 
     @Test
@@ -89,7 +90,7 @@ class AbstractPlayerTest extends BaseTest {
         // pieces[3] stays BASE
 
         // Assert
-        assertFalse(player.allHome());
+        Assertions.assertFalse(player.allHome());
     }
 }
 

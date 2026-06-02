@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import model.RandomInitiator;
 import org.junit.jupiter.api.BeforeEach;

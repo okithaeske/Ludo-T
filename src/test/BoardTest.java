@@ -1,4 +1,4 @@
-package test.test;
+package test;
 
 import enums.Colour;
 import enums.Direction;
@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("Board")
@@ -34,7 +35,7 @@ class BoardTest extends BaseTest {
         board.placePiece(piece, 10);
 
         // Assert
-        assertEquals(1, board.getPiecesAt(10).size());
+        Assertions.assertEquals(1, board.getPiecesAt(10).size());
     }
 
     @Test
@@ -48,14 +49,14 @@ class BoardTest extends BaseTest {
         board.removePiece(piece, 10);
 
         // Assert
-        assertEquals(0, board.getPiecesAt(10).size());
+        Assertions.assertEquals(0, board.getPiecesAt(10).size());
     }
 
     @Test
     @DisplayName("should_returnEmptyList_when_cellIsEmpty")
     void should_returnEmptyList_when_cellIsEmpty() {
         // Assert
-        assertTrue(board.getPiecesAt(5).isEmpty());
+        Assertions.assertTrue(board.getPiecesAt(5).isEmpty());
     }
 
     // getPiecesAt
@@ -69,9 +70,9 @@ class BoardTest extends BaseTest {
         board.placePiece(r2, 15);
 
         // Assert
-        assertEquals(2, board.getPiecesAt(15).size());
-        assertTrue(board.getPiecesAt(15).contains(r1));
-        assertTrue(board.getPiecesAt(15).contains(r2));
+        Assertions.assertEquals(2, board.getPiecesAt(15).size());
+        Assertions.assertTrue(board.getPiecesAt(15).contains(r1));
+        Assertions.assertTrue(board.getPiecesAt(15).contains(r2));
     }
 
     // getBlockAt
@@ -89,8 +90,8 @@ class BoardTest extends BaseTest {
         Block block = board.getBlockAt(20, Colour.RED, Direction.CW);
 
         // Assert
-        assertNotNull(block);
-        assertEquals(2, block.getSize());
+        Assertions.assertNotNull(block);
+        Assertions.assertEquals(2, block.getSize());
     }
 
     @Test
@@ -104,7 +105,7 @@ class BoardTest extends BaseTest {
         Block block = board.getBlockAt(20, Colour.RED, Direction.CW);
 
         // Assert
-        assertNull(block);
+        Assertions.assertNull(block);
     }
 
     @Test
@@ -120,14 +121,14 @@ class BoardTest extends BaseTest {
         Block block = board.getBlockAt(20, Colour.RED, Direction.CW);
 
         // Assert
-        assertNull(block);
+        Assertions.assertNull(block);
     }
 
     //distanceToHome
     @Test
     @DisplayName("should_calculateCorrectDistance_when_pieceIsMovingCW")
     void should_calculateCorrectDistance_when_pieceIsMovingCW() {
-        // Arrange â€” Red approach = 24, piece at 20, CW distance = (24-20+52)%52 = 4
+        // Arrange Ã¢â‚¬â€ Red approach = 24, piece at 20, CW distance = (24-20+52)%52 = 4
         Piece piece = new Piece("R1", Colour.RED);
         piece.moveTo(20);
         piece.setState(PieceState.ACTIVE);
@@ -137,13 +138,13 @@ class BoardTest extends BaseTest {
         int distance = board.distanceToHome(piece);
 
         // Assert
-        assertEquals(4, distance);
+        Assertions.assertEquals(4, distance);
     }
 
     @Test
     @DisplayName("should_calculateCorrectDistance_when_pieceIsMovingCCW")
     void should_calculateCorrectDistance_when_pieceIsMovingCCW() {
-        // Arrange â€” Red approach = 24, piece at 26, CCW distance = (26-24+52)%52 = 2
+        // Arrange Ã¢â‚¬â€ Red approach = 24, piece at 26, CCW distance = (26-24+52)%52 = 2
         Piece piece = new Piece("R1", Colour.RED);
         piece.moveTo(26);
         piece.setState(PieceState.ACTIVE);
@@ -153,7 +154,7 @@ class BoardTest extends BaseTest {
         int distance = board.distanceToHome(piece);
 
         // Assert
-        assertEquals(2, distance);
+        Assertions.assertEquals(2, distance);
     }
 
     // Start cells
@@ -161,10 +162,10 @@ class BoardTest extends BaseTest {
     @DisplayName("should_mapCorrectStartCells_when_queried")
     void should_mapCorrectStartCells_when_queried() {
         // Assert
-        assertEquals(GameConstants.RED_START,    board.getStartX(Colour.RED));
-        assertEquals(GameConstants.GREEN_START,  board.getStartX(Colour.GREEN));
-        assertEquals(GameConstants.YELLOW_START, board.getStartX(Colour.YELLOW));
-        assertEquals(GameConstants.BLUE_START,   board.getStartX(Colour.BLUE));
+        Assertions.assertEquals(GameConstants.RED_START,    board.getStartX(Colour.RED));
+        Assertions.assertEquals(GameConstants.GREEN_START,  board.getStartX(Colour.GREEN));
+        Assertions.assertEquals(GameConstants.YELLOW_START, board.getStartX(Colour.YELLOW));
+        Assertions.assertEquals(GameConstants.BLUE_START,   board.getStartX(Colour.BLUE));
     }
 
     // Approach cells
@@ -172,10 +173,10 @@ class BoardTest extends BaseTest {
     @DisplayName("should_mapCorrectApproachCells_when_queried")
     void should_mapCorrectApproachCells_when_queried() {
         // Assert
-        assertEquals(GameConstants.RED_APPROACH,    board.getApproach(Colour.RED));
-        assertEquals(GameConstants.GREEN_APPROACH,  board.getApproach(Colour.GREEN));
-        assertEquals(GameConstants.YELLOW_APPROACH, board.getApproach(Colour.YELLOW));
-        assertEquals(GameConstants.BLUE_APPROACH,   board.getApproach(Colour.BLUE));
+        Assertions.assertEquals(GameConstants.RED_APPROACH,    board.getApproach(Colour.RED));
+        Assertions.assertEquals(GameConstants.GREEN_APPROACH,  board.getApproach(Colour.GREEN));
+        Assertions.assertEquals(GameConstants.YELLOW_APPROACH, board.getApproach(Colour.YELLOW));
+        Assertions.assertEquals(GameConstants.BLUE_APPROACH,   board.getApproach(Colour.BLUE));
     }
 }
 

@@ -1,17 +1,16 @@
-package test.test;
+package test;
 
 import engine.TurnManager;
-import model.GameConstants;
 import model.RandomInitiator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import player.BluePlayer;
 import player.GreenPlayer;
 import player.RedPlayer;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("TurnManager")
@@ -33,20 +32,20 @@ class TurnManagerTest extends BaseTest {
     @Test
     @DisplayName("should_incrementConsecutiveSixes_when_sixIsRolled")
     void should_incrementConsecutiveSixes_when_sixIsRolled() {
-        // Arrange — force a 6 by pre-seeding
+        // Arrange â€” force a 6 by pre-seeding
         forceNextRoll(6);
 
         // Act
         tm.rollDice(red);
 
         // Assert
-        assertEquals(1, tm.getConsecutiveSixes());
+        Assertions.assertEquals(1, tm.getConsecutiveSixes());
     }
 
     @Test
     @DisplayName("should_resetConsecutiveSixes_when_nonSixIsRolled")
     void should_resetConsecutiveSixes_when_nonSixIsRolled() {
-        // Arrange — roll a 6, then a non-6
+        // Arrange â€” roll a 6, then a non-6
         forceNextRoll(6); tm.rollDice(red);
         forceNextRoll(3);
 
@@ -54,7 +53,7 @@ class TurnManagerTest extends BaseTest {
         tm.rollDice(red);
 
         // Assert
-        assertEquals(0, tm.getConsecutiveSixes());
+        Assertions.assertEquals(0, tm.getConsecutiveSixes());
     }
 
     @Test
@@ -66,7 +65,7 @@ class TurnManagerTest extends BaseTest {
         forceNextRoll(6); tm.rollDice(red);
 
         // Assert
-        assertTrue(tm.isTripleSix());
+        Assertions.assertTrue(tm.isTripleSix());
     }
 
     // advanceToNextPlayer
@@ -74,7 +73,7 @@ class TurnManagerTest extends BaseTest {
     @Test
     @DisplayName("should_resetConsecutiveSixes_when_advanceToNextPlayerCalled")
     void should_resetConsecutiveSixes_when_advanceToNextPlayerCalled() {
-        // Arrange — build up two sixes
+        // Arrange â€” build up two sixes
         forceNextRoll(6); tm.rollDice(red);
         forceNextRoll(6); tm.rollDice(red);
 
@@ -82,7 +81,7 @@ class TurnManagerTest extends BaseTest {
         tm.advanceToNextPlayer();
 
         // Assert
-        assertEquals(0, tm.getConsecutiveSixes());
+        Assertions.assertEquals(0, tm.getConsecutiveSixes());
     }
 
     @Test
@@ -95,7 +94,7 @@ class TurnManagerTest extends BaseTest {
         tm.advanceToNextPlayer();
 
         // Assert
-        assertFalse(tm.isExtraRollPending());
+        Assertions.assertFalse(tm.isExtraRollPending());
     }
 
     // setOrder / getTurnOrder
@@ -103,23 +102,23 @@ class TurnManagerTest extends BaseTest {
     @Test
     @DisplayName("should_reorderPlayers_when_setOrderCalledWithNonFirstPlayer")
     void should_reorderPlayers_when_setOrderCalledWithNonFirstPlayer() {
-        // Act — make Green go first
+        // Act â€” make Green go first
         tm.setOrder(green);
 
         // Assert
-        assertEquals(green, tm.getTurnOrder().get(0));
-        assertEquals(red,   tm.getTurnOrder().get(1));
+        Assertions.assertEquals(green, tm.getTurnOrder().get(0));
+        Assertions.assertEquals(red,   tm.getTurnOrder().get(1));
     }
 
     @Test
     @DisplayName("should_keepOrder_when_setOrderCalledWithAlreadyFirstPlayer")
     void should_keepOrder_when_setOrderCalledWithAlreadyFirstPlayer() {
-        // Act — Red is already first
+        // Act â€” Red is already first
         tm.setOrder(red);
 
         // Assert
-        assertEquals(red,   tm.getTurnOrder().get(0));
-        assertEquals(green, tm.getTurnOrder().get(1));
+        Assertions.assertEquals(red,   tm.getTurnOrder().get(0));
+        Assertions.assertEquals(green, tm.getTurnOrder().get(1));
     }
 
     // Triple three (frozen escape)
@@ -127,13 +126,13 @@ class TurnManagerTest extends BaseTest {
     @Test
     @DisplayName("should_detectTripleThree_when_threeRolledThreeTimes")
     void should_detectTripleThree_when_threeRolledThreeTimes() {
-        // Arrange — roll 3 three times for red
+        // Arrange â€” roll 3 three times for red
         forceNextRoll(3); tm.rollDice(red);
         forceNextRoll(3); tm.rollDice(red);
         forceNextRoll(3); tm.rollDice(red);
 
         // Assert
-        assertTrue(tm.isTripleThreeForPlayer(red));
+        Assertions.assertTrue(tm.isTripleThreeForPlayer(red));
     }
 
     @Test
@@ -148,20 +147,20 @@ class TurnManagerTest extends BaseTest {
         tm.rollDice(red);
 
         // Assert
-        assertFalse(tm.isTripleThreeForPlayer(red));
+        Assertions.assertFalse(tm.isTripleThreeForPlayer(red));
     }
 
     @Test
     @DisplayName("should_notShareThreeCount_when_differentPlayerRolls")
     void should_notShareThreeCount_when_differentPlayerRolls() {
-        // Arrange — three 3s for red, one 3 for green
+        // Arrange â€” three 3s for red, one 3 for green
         forceNextRoll(3); tm.rollDice(red);
         forceNextRoll(3); tm.rollDice(red);
         forceNextRoll(3); tm.rollDice(red);
         forceNextRoll(3); tm.rollDice(green);
 
-        // Assert — green has only one 3, not triple
-        assertFalse(tm.isTripleThreeForPlayer(green));
+        // Assert â€” green has only one 3, not triple
+        Assertions.assertFalse(tm.isTripleThreeForPlayer(green));
     }
 
     // extra roll
@@ -170,7 +169,7 @@ class TurnManagerTest extends BaseTest {
     @DisplayName("should_setPending_when_grantExtraRollCalled")
     void should_setPending_when_grantExtraRollCalled() {
         tm.grantExtraRoll();
-        assertTrue(tm.isExtraRollPending());
+        Assertions.assertTrue(tm.isExtraRollPending());
     }
 
     @Test
@@ -178,7 +177,7 @@ class TurnManagerTest extends BaseTest {
     void should_clearPending_when_clearExtraRollCalled() {
         tm.grantExtraRoll();
         tm.clearExtraRoll();
-        assertFalse(tm.isExtraRollPending());
+        Assertions.assertFalse(tm.isExtraRollPending());
     }
 
     // resetRollStreaks
@@ -186,7 +185,7 @@ class TurnManagerTest extends BaseTest {
     @Test
     @DisplayName("should_clearAllStreaks_when_resetRollStreaksCalled")
     void should_clearAllStreaks_when_resetRollStreaksCalled() {
-        // Arrange — build up some state
+        // Arrange â€” build up some state
         forceNextRoll(6); tm.rollDice(red);
         forceNextRoll(3); tm.rollDice(red);
         tm.grantExtraRoll();
@@ -195,9 +194,9 @@ class TurnManagerTest extends BaseTest {
         tm.resetRollStreaks();
 
         // Assert
-        assertEquals(0, tm.getConsecutiveSixes());
-        assertFalse(tm.isExtraRollPending());
-        assertFalse(tm.isTripleThreeForPlayer(red));
+        Assertions.assertEquals(0, tm.getConsecutiveSixes());
+        Assertions.assertFalse(tm.isExtraRollPending());
+        Assertions.assertFalse(tm.isTripleThreeForPlayer(red));
     }
 
     // handleTripleSix
@@ -205,37 +204,37 @@ class TurnManagerTest extends BaseTest {
     @Test
     @DisplayName("should_resetSixes_when_handleTripleSixCalled")
     void should_resetSixes_when_handleTripleSixCalled() {
-        // Arrange — reach triple six
+        // Arrange â€” reach triple six
         forceNextRoll(6); tm.rollDice(red);
         forceNextRoll(6); tm.rollDice(red);
         forceNextRoll(6); tm.rollDice(red);
-        assertTrue(tm.isTripleSix());
+        Assertions.assertTrue(tm.isTripleSix());
 
         // Act
         tm.handleTripleSix();
 
         // Assert
-        assertEquals(0, tm.getConsecutiveSixes());
-        assertFalse(tm.isExtraRollPending());
+        Assertions.assertEquals(0, tm.getConsecutiveSixes());
+        Assertions.assertFalse(tm.isExtraRollPending());
     }
 
     // Triple six: bonus rolls are voided (Rule 4)
     @Test
     @DisplayName("should_ignoreThirdConsecutiveSix_when_threeRolledInRow")
     void should_ignoreThirdConsecutiveSix_when_threeRolledInRow() {
-        // Arrange — two sixes grant two pending extra rolls; the third triggers a penalty.
+        // Arrange â€” two sixes grant two pending extra rolls; the third triggers a penalty.
         // handleTripleSix() must clear the pending state so no extra roll remains.
         forceNextRoll(6); tm.rollDice(red); tm.grantExtraRoll();
         forceNextRoll(6); tm.rollDice(red); tm.grantExtraRoll();
         forceNextRoll(6); tm.rollDice(red);
-        assertTrue(tm.isTripleSix());
+        Assertions.assertTrue(tm.isTripleSix());
 
         // Act
         tm.handleTripleSix();
 
-        // Assert — extra-roll flag is cleared; the three sixes grant nothing
-        assertFalse(tm.isExtraRollPending());
-        assertEquals(0, tm.getConsecutiveSixes());
+        // Assert â€” extra-roll flag is cleared; the three sixes grant nothing
+        Assertions.assertFalse(tm.isExtraRollPending());
+        Assertions.assertEquals(0, tm.getConsecutiveSixes());
     }
 
     /**
@@ -251,6 +250,6 @@ class TurnManagerTest extends BaseTest {
                 return;
             }
         }
-        fail("Could not find a seed to produce roll " + desiredRoll);
+        Assertions.fail("Could not find a seed to produce roll " + desiredRoll);
     }
 }

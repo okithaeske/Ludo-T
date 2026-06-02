@@ -1,10 +1,9 @@
-package test.test;
+package test;
 
 import engine.EffectHandler;
 import engine.RuleEngine;
 import engine.TurnExecutor;
 import engine.TurnManager;
-import enums.Colour;
 import enums.Direction;
 import enums.GameMode;
 import enums.PieceState;
@@ -22,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("TurnExecutor")
@@ -57,7 +57,7 @@ class TurnExecutorTest extends BaseTest {
     @Test
     @DisplayName("should_grantExtraRoll_when_sixIsRolled")
     void should_grantExtraRoll_when_sixIsRolled() {
-        // Arrange — active Red piece at 10; rolling 6 moves it and triggers extra roll.
+        // Arrange â€” active Red piece at 10; rolling 6 moves it and triggers extra roll.
         Piece r1 = red.getPieces()[0];
         r1.setState(PieceState.ACTIVE);
         r1.moveTo(10);
@@ -70,14 +70,14 @@ class TurnExecutorTest extends BaseTest {
         executor.executeTurn(red, false);
 
         // Assert
-        assertTrue(turnManager.isExtraRollPending());
+        Assertions.assertTrue(turnManager.isExtraRollPending());
     }
 
     // Capture grants bonus roll (Rule T-2)
     @Test
     @DisplayName("should_grantBonusRoll_when_captureOccurs")
     void should_grantBonusRoll_when_captureOccurs() {
-        // Arrange — Red at 10, lone Green at 11. Roll 1 → Red captures Green.
+        // Arrange â€” Red at 10, lone Green at 11. Roll 1 â†’ Red captures Green.
         Piece r1 = red.getPieces()[0];
         r1.setState(PieceState.ACTIVE);
         r1.moveTo(10);
@@ -96,14 +96,14 @@ class TurnExecutorTest extends BaseTest {
         executor.executeTurn(red, false);
 
         // Assert
-        assertTrue(turnManager.isExtraRollPending());
+        Assertions.assertTrue(turnManager.isExtraRollPending());
     }
 
     // Captured piece returned to base (Rule 6)
     @Test
     @DisplayName("should_returnOpponentPieceToBase_when_pieceLandsOnOccupiedCell")
     void should_returnOpponentPieceToBase_when_pieceLandsOnOccupiedCell() {
-        // Arrange — Red at 10, lone Green at 11. Roll 1 → Red captures Green.
+        // Arrange â€” Red at 10, lone Green at 11. Roll 1 â†’ Red captures Green.
         Piece r1 = red.getPieces()[0];
         r1.setState(PieceState.ACTIVE);
         r1.moveTo(10);
@@ -121,10 +121,10 @@ class TurnExecutorTest extends BaseTest {
         // Act
         executor.executeTurn(red, false);
 
-        // Assert — captured piece fully reset to base
-        assertEquals(PieceState.BASE, g1.getState());
-        assertEquals(GameConstants.NO_POSITION, g1.getPosition());
-        assertFalse(board.getPiecesAt(11).contains(g1));
+        // Assert â€” captured piece fully reset to base
+        Assertions.assertEquals(PieceState.BASE, g1.getState());
+        Assertions.assertEquals(GameConstants.NO_POSITION, g1.getPosition());
+        Assertions.assertFalse(board.getPiecesAt(11).contains(g1));
     }
 
     /** Brute-forces a seed so the next dice roll equals {@code desiredRoll}. */
@@ -136,6 +136,6 @@ class TurnExecutorTest extends BaseTest {
                 return;
             }
         }
-        fail("Could not find a seed to produce roll " + desiredRoll);
+        Assertions.fail("Could not find a seed to produce roll " + desiredRoll);
     }
 }

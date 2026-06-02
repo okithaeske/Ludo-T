@@ -1,13 +1,13 @@
-package test.test;
+package test;
 
 import engine.GameEngine;
 import engine.GameEngineBuilder;
 import enums.GameMode;
 import logger.GameEventListener;
-import model.GameConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("GameEngine")
@@ -33,7 +33,7 @@ class GameEngineTest extends BaseTest {
         runUntilOver(game);
 
         // Assert
-        assertTrue(game.isGameOver(), "Game did not finish within " + MAX_ROUNDS + " rounds");
+        Assertions.assertTrue(game.isGameOver(), "Game did not finish within " + MAX_ROUNDS + " rounds");
     }
 
     @Test
@@ -46,8 +46,8 @@ class GameEngineTest extends BaseTest {
                 .withListener(SILENT)
                 .build();
 
-        // Act / Assert — no exception thrown
-        assertDoesNotThrow(() -> {
+        // Act / Assert â€” no exception thrown
+        Assertions.assertDoesNotThrow(() -> {
             for (int i = 0; i < 200 && !game.isGameOver(); i++) {
                 game.executeRound();
             }
@@ -65,13 +65,13 @@ class GameEngineTest extends BaseTest {
                 .build();
 
         // Assert
-        assertFalse(game.isGameOver());
+        Assertions.assertFalse(game.isGameOver());
     }
 
     @Test
     @DisplayName("should_produceConsistentResult_when_sameSeedUsedTwice")
     void should_produceConsistentResult_when_sameSeedUsedTwice() {
-        // Arrange — game 1
+        // Arrange â€” game 1
         GameEngine game1 = new GameEngineBuilder()
                 .withMode(GameMode.LUDO_T)
                 .withSeed(7L)
@@ -79,7 +79,7 @@ class GameEngineTest extends BaseTest {
                 .build();
         int rounds1 = runUntilOver(game1);
 
-        // Arrange — game 2 with same seed
+        // Arrange â€” game 2 with same seed
         GameEngine game2 = new GameEngineBuilder()
                 .withMode(GameMode.LUDO_T)
                 .withSeed(7L)
@@ -87,15 +87,15 @@ class GameEngineTest extends BaseTest {
                 .build();
         int rounds2 = runUntilOver(game2);
 
-        // Assert — deterministic: same seed must produce same number of rounds
-        assertEquals(rounds1, rounds2);
+        // Assert â€” deterministic: same seed must produce same number of rounds
+        Assertions.assertEquals(rounds1, rounds2);
     }
 
     @Test
     @DisplayName("should_buildSuccessfully_when_noListenerSpecified")
     void should_buildSuccessfully_when_noListenerSpecified() {
         // Builder must supply a default Logger when no listener is added.
-        assertDoesNotThrow(() -> new GameEngineBuilder()
+        Assertions.assertDoesNotThrow(() -> new GameEngineBuilder()
                 .withMode(GameMode.LUDO_T)
                 .withSeed(42L)
                 .build());
@@ -104,8 +104,8 @@ class GameEngineTest extends BaseTest {
     @Test
     @DisplayName("should_spawnMysteryCell_when_twoRoundsHavePassedWithPiecesOnBoard")
     void should_spawnMysteryCell_when_twoRoundsHavePassedWithPiecesOnBoard() {
-        // Arrange — capture mystery-spawn event via listener.
-        // MysteryCellManager spawns after MYSTERY_SPAWN_ROUND (2) rounds with ≥1 piece on the path.
+        // Arrange â€” capture mystery-spawn event via listener.
+        // MysteryCellManager spawns after MYSTERY_SPAWN_ROUND (2) rounds with â‰¥1 piece on the path.
         boolean[] spawned = {false};
         GameEventListener listener = new GameEventListener() {
             @Override
@@ -120,13 +120,13 @@ class GameEngineTest extends BaseTest {
                 .withListener(listener)
                 .build();
 
-        // Act — run up to 20 rounds; mystery must have spawned well within that window.
+        // Act â€” run up to 20 rounds; mystery must have spawned well within that window.
         for (int i = 0; i < 20 && !game.isGameOver() && !spawned[0]; i++) {
             game.executeRound();
         }
 
         // Assert
-        assertTrue(spawned[0], "Mystery cell should spawn after 2 rounds with pieces on the board");
+        Assertions.assertTrue(spawned[0], "Mystery cell should spawn after 2 rounds with pieces on the board");
     }
 
     private int runUntilOver(GameEngine game) {
