@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("MysteryCell")
-class MysteryCellTest extends BaseTest {
+class MysteryCellTest extends test.BaseTest {
 
     private Board board;
     private MysteryCell mysteryCell;

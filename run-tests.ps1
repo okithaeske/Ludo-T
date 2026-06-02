@@ -9,7 +9,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 $Root     = $PSScriptRoot
-$SrcTest  = "$Root\src\test"
+$SrcTest  = "$Root\test"
 $OutMain  = "$Root\out"
 $OutTest  = "$Root\out\test"
 $JunitJar = "$Root\lib\junit-standalone.jar"
