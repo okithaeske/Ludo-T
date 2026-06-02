@@ -219,8 +219,6 @@ class TurnManagerTest extends BaseTest {
         assertFalse(tm.isExtraRollPending());
     }
 
-    // ── Helper ───────────────────────────────────────────────────────────────
-
     /**
      * Seeds the RNG so the next {@code nextInt(6)} returns {@code (desiredRoll - 1)},
      * which the dice translates to {@code desiredRoll}.

@@ -35,8 +35,7 @@ class BlockTest extends BaseTest {
         assertEquals(0, block.getSize());
     }
 
-    // â”€â”€ canBeCaptured() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    // canBeCaptured()
     @Test
     @DisplayName("should_returnTrue_when_attackerSizeEqualsDefenderSize")
     void should_returnTrue_when_attackerSizeEqualsDefenderSize() {

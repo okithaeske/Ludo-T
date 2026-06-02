@@ -29,8 +29,7 @@ class BlockerStrategyTest extends BaseTest {
         strategy = new BlockerStrategy(green);
     }
 
-    // â”€â”€ Base exit on roll 6 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    // Base exit on roll 6
     @Test
     @DisplayName("should_exitBase_when_rollIsSixAndBasePieceExists")
     void should_exitBase_when_rollIsSixAndBasePieceExists() {
@@ -44,8 +43,7 @@ class BlockerStrategyTest extends BaseTest {
         assertEquals(PieceState.BASE, selected.getState());
     }
 
-    // â”€â”€ Block formation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    //  Block formation
     @Test
     @DisplayName("should_moveToFormBlock_when_friendlyPieceIsAtTargetCell")
     void should_moveToFormBlock_when_friendlyPieceIsAtTargetCell() {
@@ -71,8 +69,7 @@ class BlockerStrategyTest extends BaseTest {
         assertEquals(pieces[0], selected);
     }
 
-    // â”€â”€ No valid move â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    //  No valid move
     @Test
     @DisplayName("should_returnNoPiece_when_allPiecesAreAtBase_andRollIsNotSix")
     void should_returnNoPiece_when_allPiecesAreAtBase_andRollIsNotSix() {
@@ -85,8 +82,7 @@ class BlockerStrategyTest extends BaseTest {
         assertTrue(selected.isNull());
     }
 
-    // â”€â”€ Avoid capture fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    //  Avoid capture fallback
     @Test
     @DisplayName("should_moveLeastAdvancedPiece_when_avoidingCapture")
     void should_moveLeastAdvancedPiece_when_avoidingCapture() {

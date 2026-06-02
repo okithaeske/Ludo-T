@@ -36,8 +36,6 @@ public class Logger implements GameEventListener {
         LOG.addHandler(handler);
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     private static String colour(Piece piece) {
         return piece.getColour().name().toLowerCase();
     }
@@ -69,8 +67,6 @@ public class Logger implements GameEventListener {
         LOG.info(message);
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-
     @Override
     public void onGameStart() {
         log("Game started");
@@ -96,8 +92,6 @@ public class Logger implements GameEventListener {
         }
     }
 
-    // ── Turn start ────────────────────────────────────────────────────────────
-
     @Override
     public void onSelectionRoll(AbstractPlayer player, int value) {
         log(colour(player) + " rolls " + value);
@@ -107,8 +101,6 @@ public class Logger implements GameEventListener {
     public void onRoll(AbstractPlayer player, int value) {
         log(colour(player) + " player rolled " + value + ".");
     }
-
-    // ── First player ──────────────────────────────────────────────────────────
 
     @Override
     public void onFirstPlayerSelected(AbstractPlayer player, List<AbstractPlayer> players,
@@ -124,8 +116,6 @@ public class Logger implements GameEventListener {
         order.append(".");
         log(order.toString());
     }
-
-    // ── Movement ──────────────────────────────────────────────────────────────
 
     @Override
     public void onPieceMoveToX(Piece piece, int piecesOnBoard, int piecesAtBase) {
@@ -166,8 +156,6 @@ public class Logger implements GameEventListener {
                 + " by " + steps + " " + unit(steps) + " in " + direction(direction) + " direction.");
     }
 
-    // ── Blocking ──────────────────────────────────────────────────────────────
-
     @Override
     public void onPieceBlocked(Piece piece, int from, int blockedAt, List<Piece> blockers) {
         String blockerDesc = blockers.isEmpty() ? "a block"
@@ -192,8 +180,6 @@ public class Logger implements GameEventListener {
                 + " Ignoring the throw and moving on to the next player.");
     }
 
-    // ── Capture ───────────────────────────────────────────────────────────────
-
     @Override
     public void onCapture(Piece attacker, Piece victim) {
         log(colour(attacker) + " piece " + attacker.getId()
@@ -209,8 +195,6 @@ public class Logger implements GameEventListener {
                 + "/4 pieces on the base.");
     }
 
-    // ── Mystery cell & teleport ───────────────────────────────────────────────
-
     @Override
     public void onMysterySpawn(int position) {
         log("A mystery cell has spawned in location " + position
@@ -223,8 +207,6 @@ public class Logger implements GameEventListener {
         log(colour(piece) + " player lands on a mystery cell and is teleported to " + name + ".");
         log(colour(piece) + " piece " + piece.getId() + " teleported to " + name + ".");
     }
-
-    // ── Effects ───────────────────────────────────────────────────────────────
 
     @Override
     public void onCoinToss(Piece piece, Direction direction) {
@@ -270,8 +252,6 @@ public class Logger implements GameEventListener {
                 + " feels sick, and movement speed halves.");
     }
 
-    // ── Win & round summary ───────────────────────────────────────────────────
-
     @Override
     public void onWin(AbstractPlayer player, int place) {
         log(colour(player) + " player wins!!!");
@@ -314,8 +294,6 @@ public class Logger implements GameEventListener {
         }
     }
 
-    // ── Block events ──────────────────────────────────────────────────────────
-
     @Override
     public void onBlockFormed(Block block) {
         log("Block formed at " + block.getPosition() + " size " + block.getSize());
@@ -332,8 +310,6 @@ public class Logger implements GameEventListener {
         log("Block capture: attacker block (size " + attacker.getSize()
                 + ") captured defender block (size " + defender.getSize() + ").");
     }
-
-    // ── Final result ──────────────────────────────────────────────────────────
 
     @Override
     public void onGameResult(List<AbstractPlayer> finishingOrder) {

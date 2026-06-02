@@ -40,8 +40,12 @@ public class TurnExecutor {
         this.players = players;
     }
 
-    // ── Entry point ───────────────────────────────────────────────────────────
-
+    /**
+     * Entry point for one player turn. Applies triple-six and frozen-escape guards in
+     * that order; if neither fires, delegates to {@link #handleNormalTurn}. Callers in
+     * {@link GameEngine} pass {@code isExtraRoll=true} when the turn was granted by a
+     * capture or a roll of 6, which suppresses the {@link EffectHandler} tick.
+     */
     public void executeTurn(AbstractPlayer player, boolean isExtraRoll) {
         int roll = turnManager.rollDice(player);
         publisher.publishRoll(player, roll);
@@ -50,8 +54,6 @@ public class TurnExecutor {
         if (handleFrozenEscape(player, isExtraRoll)) return;
         handleNormalTurn(player, roll, isExtraRoll);
     }
-
-    // ── Turn-level handlers ───────────────────────────────────────────────────
 
     private boolean handleTripleSix(AbstractPlayer player, boolean isExtraRoll) {
         if (!turnManager.isTripleSix()) return false;
@@ -95,13 +97,15 @@ public class TurnExecutor {
                 : ruleEngine.validateMove(piece, roll);
     }
 
+    /**
+     * Ticks per-player effects at the end of a turn unless this was an extra roll or
+     * {@code skipTick} is true (set by teleport turns so effects don't double-advance).
+     */
     private void finishTurn(AbstractPlayer player, boolean isExtraRoll, boolean skipTick) {
         if (!isExtraRoll && !skipTick) {
             effectHandler.tickPlayerEffects(player);
         }
     }
-
-    // ── Move application ──────────────────────────────────────────────────────
 
     private void applyMove(Piece piece, MoveResult result, AbstractPlayer player,
                            int roll, Block currentBlock) {
@@ -156,6 +160,12 @@ public class TurnExecutor {
         publisher.publishPieceBlockedAtAdjacent(piece, blockingCell, result.getTargetCell());
     }
 
+    /**
+     * Routes a capture result to the correct handler based on what is attacking what.
+     * Block-vs-block capture is handled first; then a moving block capturing a lone piece;
+     * then a lone piece capturing a lone piece. All three paths grant an extra roll via
+     * {@link TurnManager#grantExtraRoll}.
+     */
     private void resolveCaptures(Piece piece, MoveResult result, Block currentBlock) {
         if (result.isBlockCapture() && currentBlock != null) {
             AbstractPlayer victimPlayer = findPlayerByColour(result.getDefenderBlock().getColour());
@@ -175,8 +185,6 @@ public class TurnExecutor {
             effectHandler.handleTeleport(piece, result);
         }
     }
-
-    // ── Movement helpers ──────────────────────────────────────────────────────
 
     private void applyHomeStraightMove(Piece piece, MoveResult result, int fromCell) {
         int oldHomePos = piece.getHomeStraightPosition(); // save before update
@@ -288,8 +296,11 @@ public class TurnExecutor {
                 piece.getDirection(), steps);
     }
 
-    // ── Block utilities ───────────────────────────────────────────────────────
-
+    /**
+     * Builds a {@link Block} at the piece's current cell, or {@code null} when the piece
+     * is in the home straight or sitting on the approach cell. Approach-cell pieces must
+     * enter home individually so they are intentionally excluded from block logic.
+     */
     private Block buildBlockForPiece(Piece piece) {
         if (piece.isInHomeStraight()) return null;
         if (piece.getPosition() == board.getApproach(piece.getColour())) return null;
@@ -332,6 +343,11 @@ public class TurnExecutor {
         }
     }
 
+    /**
+     * Increments the CCW approach-pass counter when a CCW piece crosses or departs the
+     * approach cell. {@link RuleEngine#tryEnterHomeStraight} uses this count to enforce
+     * Rule T-10: a CCW piece must complete two full laps before home entry is allowed.
+     */
     private void trackApproachPass(Piece piece, int fromPos, int targetPos) {
         if (targetPos == GameConstants.NO_POSITION) return;
         int approachCell = board.getApproach(piece.getColour());

@@ -50,12 +50,11 @@ class AggressiveStrategyTest extends BaseTest {
         return opponent;
     }
 
-    // â”€â”€ Capture priority â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    //  Capture priority
     @Test
     @DisplayName("should_selectAttacker_when_opponentIsInCaptureRange")
     void should_selectAttacker_when_opponentIsInCaptureRange() {
-        // Arrange â€” Red at 10 (CW), Green single piece at 11; roll 1 â†’ target = 11
+        // Arrange Red at 10 (CW), Green single piece at 11; roll 1 â†’ target = 11
         Piece redPiece = activatePieceAt(0, 10);
         placeOpponentAt(Colour.GREEN, 11);
 
@@ -87,8 +86,7 @@ class AggressiveStrategyTest extends BaseTest {
         assertEquals(r2, selected);
     }
 
-    // â”€â”€ No valid move â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+    // No valid move
     @Test
     @DisplayName("should_returnNoPiece_when_allPiecesAreAtBase_andRollIsNotSix")
     void should_returnNoPiece_when_allPiecesAreAtBase_andRollIsNotSix() {
@@ -101,9 +99,7 @@ class AggressiveStrategyTest extends BaseTest {
         assertTrue(selected.isNull());
     }
 
-    // â”€â”€ Base exit on roll 6 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-    @Test
+    //  Base exit on roll 6 Test
     @DisplayName("should_bringBasePiece_when_rollIsSix_andNoBoardPiecesExist")
     void should_bringBasePiece_when_rollIsSix_andNoBoardPiecesExist() {
         // Arrange â€” all pieces at BASE, no board pieces

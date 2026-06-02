@@ -28,8 +28,13 @@ public class RuleEngine {
         this.mode = mode;
     }
 
-    // ── Move validation ───────────────────────────────────────────────────────
-
+    /**
+     * Validates a single-piece move. The pipeline runs in order: movement restriction →
+     * base-entry (requires 6) → home-straight continuation → home-straight entry →
+     * opponent block in path → Ludo-T mystery-cell check → capture check. Returns an
+     * invalid {@link MoveResult} at the first failing gate; the caller ({@link TurnExecutor})
+     * only applies the move when {@code result.isValid()} is true.
+     */
     public MoveResult validateMove(Piece piece, int roll) {
         MoveResult result = new MoveResult();
 
@@ -124,6 +129,12 @@ public class RuleEngine {
         return invalid(result);
     }
 
+    /**
+     * Attempts to enter the home straight. Returns {@code null} (not invalid) when the
+     * roll does not reach the approach cell or the piece is ineligible, so the caller can
+     * continue with regular path validation. Returns a valid or invalid {@link MoveResult}
+     * only when the roll actually crosses the approach cell.
+     */
     private MoveResult tryEnterHomeStraight(Piece piece, int steps, MoveResult result) {
         int distToApproach = distanceToApproach(piece);
 
@@ -267,8 +278,13 @@ public class RuleEngine {
                 && targetCell == board.getMysteryPosition();
     }
 
-    // ── Block move validation ─────────────────────────────────────────────────
-
+    /**
+     * Physically resolves a block move on the board. If advancing {@code steps =
+     * roll / block.size} would overshoot the approach cell, the block is dispersed
+     * there via {@link #disperseBlockAtApproach} and {@code brokeAtApproach=true} is
+     * returned; otherwise all pieces are advanced together. Mutates piece positions and
+     * the board directly — call only after {@link #validateBlockMove} confirms the move.
+     */
     public BlockMoveResult resolveBlock(Block block, int roll) {
         int steps = roll / block.getSize();
         Direction dir = block.getDirectionForMove();
@@ -318,6 +334,13 @@ public class RuleEngine {
         }
     }
 
+    /**
+     * Validates a block move for {@code attackerBlock}. Steps are {@code roll / block.size}.
+     * A block capture is allowed only when the lead piece's target cell lands exactly on a
+     * defender block that {@link Block#canBeCaptured} approves. Otherwise, if any opponent
+     * block lies in the path, the attacker stops at the adjacent cell — identical to
+     * single-piece blocking in {@link #validateMove}.
+     */
     public MoveResult validateBlockMove(Block attackerBlock, int roll) {
         MoveResult result = new MoveResult();
         int steps = roll / attackerBlock.getSize();
@@ -404,8 +427,6 @@ public class RuleEngine {
         int dist2 = board.distanceToHome(p2);
         return dist1 >= dist2 ? p1.getDirection() : p2.getDirection();
     }
-
-    // ── Rule T-6: forced block break on triple six ────────────────────────────
 
     /**
      * Plans the piece relocations required to disperse any block owned by

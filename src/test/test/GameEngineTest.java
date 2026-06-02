@@ -100,8 +100,6 @@ class GameEngineTest extends BaseTest {
                 .build());
     }
 
-    // ── Helper ───────────────────────────────────────────────────────────────
-
     private int runUntilOver(GameEngine game) {
         int rounds = 0;
         while (!game.isGameOver() && rounds < MAX_ROUNDS) {

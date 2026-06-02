@@ -53,8 +53,6 @@ public class GameEngine {
         this.mysteryCellManager = new MysteryCellManager(board, gameMode, publisher);
     }
 
-    // ── Public API ────────────────────────────────────────────────────────────
-
     public void startGame() {
         publisher.publishGameStart();
         publisher.publishGameInitialisation(players);
