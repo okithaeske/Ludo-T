@@ -36,3 +36,4 @@ coverage.exec
 src.zip
 sources_list.txt
 lib/jacoco-extracted/
+3sonar-project.properties

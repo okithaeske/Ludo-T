@@ -13,7 +13,7 @@
 
 $Root        = $PSScriptRoot
 $SrcMain     = "$Root\src"
-$SrcTest     = "$Root\src\test\test"
+$SrcTest     = "$Root\test"
 $OutCov      = "$Root\out\coverage"        # isolated output for coverage build
 $OutCovTest  = "$Root\out\coverage-test"
 $LibDir      = "$Root\lib"
@@ -79,7 +79,7 @@ $includes = "engine/*:enums/*:logger/*:model/*:player/*"
        "--classpath=$OutCov" `
        "--classpath=$OutCovTest" `
        --scan-class-path `
-       "--include-package=test.test" `
+       "--include-package=test" `
        --details=summary
 
 if ($LASTEXITCODE -ne 0) { Write-Host "Tests FAILED - report may be incomplete." -ForegroundColor Yellow }
