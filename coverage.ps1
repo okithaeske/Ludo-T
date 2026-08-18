@@ -73,7 +73,10 @@ Write-Host "Compiled OK." -ForegroundColor Green
 Write-Host "`nRunning tests with coverage instrumentation..." -ForegroundColor Cyan
 Remove-Item $ExecFile -ErrorAction SilentlyContinue
 
-$includes = "engine/*:enums/*:logger/*:model/*:player/*"
+# Assignment 2 tiers included alongside the Assignment 1 domain. The `main` classes
+# (server.ServerMain, client.*) are counted too even though they are entry points, so the
+# figure stays honest rather than flattered by excluding untested code.
+$includes = "engine/*:enums/*:logger/*:model/*:player/*:app/*:adapter/*:net/*:shared/*:server/*:client/*"
 & java "-javaagent:$JacocoAgent=destfile=$ExecFile,includes=$includes" `
        -jar $JunitJar `
        "--classpath=$OutCov" `

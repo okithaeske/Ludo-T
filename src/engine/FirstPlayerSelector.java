@@ -22,7 +22,9 @@ public class FirstPlayerSelector {
         this.players = players;
         this.turnManager = turnManager;
         this.publisher = publisher;
-        this.dice = Dice.getInstance();
+        // Rolls from the same dice the turn manager uses, so the selection rolls and the
+        // game's rolls come from one per-game stream rather than a process-wide singleton.
+        this.dice = turnManager.getDice();
     }
 
     public AbstractPlayer selectFirstPlayer() {

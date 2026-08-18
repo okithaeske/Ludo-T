@@ -26,8 +26,12 @@
  *       durations, cell IDs, etc.).</li>
  *   <li>{@link model.NoPiece} &ndash; <em>Null Object / Singleton.</em> Returned by strategy
  *       methods when no valid piece exists; eliminates null checks.</li>
- *   <li>{@link model.Dice} &ndash; <em>Singleton</em> dice roller (seeded for tests via
- *       {@link model.RandomInitiator}).</li>
+ *   <li>{@link model.RandomSource} &ndash; Port supplying one game's randomness, so
+ *       concurrent games never share a number stream.</li>
+ *   <li>{@link model.RandomInitiator} &ndash; Default {@code RandomSource}; also exposes a
+ *       shared instance for callers that do not inject one.</li>
+ *   <li>{@link model.Dice} &ndash; Dice roller over a {@code RandomSource}; a
+ *       {@code getInstance()} default is retained for the single-game CLI path.</li>
  *   <li>{@link model.MysteryCell} &ndash; Roaming cell active in Ludo-T mode; holds a
  *       teleport destination and a remaining-rounds countdown.</li>
  * </ul>

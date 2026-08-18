@@ -4,6 +4,7 @@ import enums.GameMode;
 import logger.GameEventListener;
 import logger.Logger;
 import model.RandomInitiator;
+import model.RandomSource;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +29,7 @@ public class GameEngineBuilder {
     private GameMode gameMode = GameMode.CLASSIC;
     private long seed = -1;
     private final List<GameEventListener> listeners = new ArrayList<>();
+    private RandomSource randomSource;
 
     public GameEngineBuilder withMode(GameMode gameMode) {
         this.gameMode = gameMode;
@@ -45,13 +47,31 @@ public class GameEngineBuilder {
         return this;
     }
 
+    /**
+     * Supplies the randomness for this game explicitly, overriding {@link #withSeed(long)}.
+     * Useful when a caller (such as a server session) owns the source's lifecycle.
+     */
+    public GameEngineBuilder withRandomSource(RandomSource randomSource) {
+        this.randomSource = randomSource;
+        return this;
+    }
+
     public GameEngine build() {
-        if (seed != -1) {
-            RandomInitiator.getInstance().setSeed(seed);
-        }
         List<GameEventListener> effective = listeners.isEmpty()
                 ? List.of(new Logger())
                 : new ArrayList<>(listeners);
-        return new GameEngine(gameMode, effective);
+        return new GameEngine(gameMode, effective, resolveRandomSource());
+    }
+
+    /**
+     * Every built engine gets its <em>own</em> source. Seeding no longer reaches the shared
+     * singleton, so creating a seeded game cannot disturb games already running elsewhere in
+     * the process, and concurrent games never share a number stream.
+     */
+    private RandomSource resolveRandomSource() {
+        if (randomSource != null) {
+            return randomSource;
+        }
+        return seed == -1 ? new RandomInitiator() : new RandomInitiator(seed);
     }
 }

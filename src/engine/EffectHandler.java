@@ -11,6 +11,7 @@ import model.GameConstants;
 import model.MoveResult;
 import model.Piece;
 import model.RandomInitiator;
+import model.RandomSource;
 import player.AbstractPlayer;
 
 import java.util.List;
@@ -23,14 +24,23 @@ public class EffectHandler {
     private final GameEventPublisher publisher;
     private final RuleEngine ruleEngine;
     private final List<AbstractPlayer> players;
+    private final RandomSource randomSource;
 
+    /** Uses the shared default random source. */
     public EffectHandler(Board board, TurnManager turnManager, GameEventPublisher publisher,
                          RuleEngine ruleEngine, List<AbstractPlayer> players) {
+        this(board, turnManager, publisher, ruleEngine, players, RandomInitiator.getInstance());
+    }
+
+    public EffectHandler(Board board, TurnManager turnManager, GameEventPublisher publisher,
+                         RuleEngine ruleEngine, List<AbstractPlayer> players,
+                         RandomSource randomSource) {
         this.board = board;
         this.turnManager = turnManager;
         this.publisher = publisher;
         this.ruleEngine = ruleEngine;
         this.players = players;
+        this.randomSource = randomSource;
     }
 
     public boolean hasActiveFrozenPiece(AbstractPlayer player) {
@@ -69,7 +79,7 @@ public class EffectHandler {
     }
 
     public void performCoinToss(Piece piece) {
-        int toss = RandomInitiator.getInstance().nextInt(2);
+        int toss = randomSource.nextInt(2);
         Direction direction = (toss == 0) ? Direction.CW : Direction.CCW;
         piece.assignInitialDirection(direction);
         publisher.publishCoinToss(piece, direction);
@@ -207,7 +217,7 @@ public class EffectHandler {
 
     private PieceEffect resolveAlphaEffect() {
         PieceEffect[] alphaEffects = {PieceEffect.ENERGISED, PieceEffect.SICK};
-        return alphaEffects[RandomInitiator.getInstance().nextInt(alphaEffects.length)];
+        return alphaEffects[randomSource.nextInt(alphaEffects.length)];
     }
 
     private void publishEffectEvent(Piece piece, PieceEffect effect) {

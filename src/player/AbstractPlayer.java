@@ -141,4 +141,7 @@ public abstract class AbstractPlayer {
     public Colour getColour() { return colour; }
     public String getName()   { return name; }
     public Piece[] getPieces() { return pieces; }
+
+    /** The selection strategy driving this player; read-only, for status displays. */
+    public PieceSelectionStrategy getStrategy() { return strategy; }
 }

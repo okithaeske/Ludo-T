@@ -36,4 +36,9 @@ coverage.exec
 src.zip
 sources_list.txt
 lib/jacoco-extracted/
+lib/*.jar
 3sonar-project.properties
+
+### IDE files that landed inside src/ ###
+src/.idea/
+src/*.iml

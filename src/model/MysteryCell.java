@@ -8,12 +8,19 @@ public class MysteryCell {
     private int roundsRemaining;
     private int lastPosition;
     private boolean active;
+    private final RandomSource randomSource;
 
+    /** Uses the shared default random source. */
     public MysteryCell(int position) {
+        this(position, RandomInitiator.getInstance());
+    }
+
+    public MysteryCell(int position, RandomSource randomSource) {
         this.position = position;
         this.roundsRemaining = GameConstants.MYSTERY_CELL_DURATION;
         this.lastPosition = GameConstants.NO_POSITION;
         this.active = false;
+        this.randomSource = randomSource;
     }
 
     /** Spawns only on an empty standard-path cell. Returns true only when a cell was found. */
@@ -59,7 +66,7 @@ public class MysteryCell {
 
     public TeleportDest getDestination() {
         TeleportDest[] destinations = TeleportDest.values();
-        return destinations[RandomInitiator.getInstance().nextInt(destinations.length)];
+        return destinations[randomSource.nextInt(destinations.length)];
     }
 
     /** Relocates to an empty standard-path cell and never repeats the previous location. */
@@ -80,7 +87,7 @@ public class MysteryCell {
         // Try random candidates first (MYSTERY_FIND_EMPTY_RETRIES = BOARD_SIZE * 3 gives a
         // high probability of finding an empty cell quickly on a typical board).
         for (int attempt = 0; attempt < GameConstants.MYSTERY_FIND_EMPTY_RETRIES; attempt++) {
-            int candidate = RandomInitiator.getInstance().nextInt(GameConstants.BOARD_SIZE);
+            int candidate = randomSource.nextInt(GameConstants.BOARD_SIZE);
             if (candidate != lastPosition && !board.isOccupied(candidate)) {
                 return candidate;
             }

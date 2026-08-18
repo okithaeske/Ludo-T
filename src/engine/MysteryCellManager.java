@@ -5,6 +5,7 @@ import logger.GameEventPublisher;
 import model.Board;
 import model.GameConstants;
 import model.MysteryCell;
+import model.RandomSource;
 
 /**
  * Manages the mystery-cell lifecycle for Ludo-T: tracking eligible rounds,
@@ -18,12 +19,15 @@ class MysteryCellManager {
     private final Board board;
     private final GameMode gameMode;
     private final GameEventPublisher publisher;
+    private final RandomSource randomSource;
     private int roundsWithPiecesOnBoard = 0;
 
-    MysteryCellManager(Board board, GameMode gameMode, GameEventPublisher publisher) {
+    MysteryCellManager(Board board, GameMode gameMode, GameEventPublisher publisher,
+                       RandomSource randomSource) {
         this.board = board;
         this.gameMode = gameMode;
         this.publisher = publisher;
+        this.randomSource = randomSource;
     }
 
     void onRoundComplete() {
@@ -55,7 +59,7 @@ class MysteryCellManager {
     private void trySpawn() {
         if (roundsWithPiecesOnBoard < GameConstants.MYSTERY_SPAWN_ROUND) return;
         if (board.getMysteryCell() == null) {
-            board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION));
+            board.setMysteryCell(new MysteryCell(GameConstants.NO_POSITION, randomSource));
         }
         boolean spawned = board.getMysteryCell().spawn(board);
         if (spawned) {

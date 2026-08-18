@@ -19,7 +19,7 @@
  *       to determine who goes first.</li>
  *   <li>{@link engine.RuleEngine} &ndash; Pure rule validation: {@code validateMove},
  *       {@code validateBlockMove}, {@code resolveBlock}, home-straight entry, captures.</li>
- *   <li>{@link engine.TurnManager} &ndash; Dice singleton wrapper, consecutive-roll tracking
+ *   <li>{@link engine.TurnManager} &ndash; Owns the game's dice, consecutive-roll tracking
  *       (triple six / triple three), extra-roll flag, turn order.</li>
  * </ul>
  *

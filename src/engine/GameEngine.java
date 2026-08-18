@@ -6,6 +6,7 @@ import enums.GameMode;
 import logger.GameEventListener;
 import logger.GameEventPublisher;
 import model.Board;
+import model.RandomSource;
 import player.AbstractPlayer;
 import player.PlayerFactory;
 
@@ -36,28 +37,41 @@ public class GameEngine {
     private final MysteryCellManager mysteryCellManager;
     private int roundNumber;
 
-    GameEngine(GameMode gameMode, List<GameEventListener> listeners) {
+    GameEngine(GameMode gameMode, List<GameEventListener> listeners, RandomSource randomSource) {
         this.gameMode = gameMode;
         this.board = new Board();
         this.publisher = new GameEventPublisher();
         listeners.forEach(publisher::addListener);
         this.players = PlayerFactory.createPlayers();
         this.ruleEngine = new RuleEngine(board, gameMode);
-        this.turnManager = new TurnManager(players);
+        this.turnManager = new TurnManager(players, randomSource);
         this.roundNumber = 0;
 
-        EffectHandler effectHandler = new EffectHandler(board, turnManager, publisher, ruleEngine, players);
+        EffectHandler effectHandler = new EffectHandler(board, turnManager, publisher, ruleEngine,
+                players, randomSource);
         this.winTracker = new WinTracker(players, publisher);
         this.turnExecutor = new TurnExecutor(board, ruleEngine, turnManager, publisher,
                 effectHandler, gameMode, players);
-        this.mysteryCellManager = new MysteryCellManager(board, gameMode, publisher);
+        this.mysteryCellManager = new MysteryCellManager(board, gameMode, publisher, randomSource);
     }
 
     public void startGame() {
+        beginGame();
+        runGameLoop();
+    }
+
+    /**
+     * Performs everything {@link #startGame()} does <em>except</em> running the blocking round
+     * loop: announces the game, introduces the players, and settles who goes first.
+     *
+     * <p>Split out so a caller that drives rounds itself — a server session ticking one round
+     * at a time, or a step-through control — can set the game up without surrendering its
+     * thread to {@link #runGameLoop()}.
+     */
+    public void beginGame() {
         publisher.publishGameStart();
         publisher.publishGameInitialisation(players);
         determineFirstPlayer();
-        runGameLoop();
     }
 
     public void determineFirstPlayer() {
@@ -108,6 +122,38 @@ public class GameEngine {
 
     public boolean isGameOver() {
         return winTracker.isGameOver();
+    }
+
+    // ── Read-only accessors ──────────────────────────────────────────────────
+    // Added for Assignment 2 so a caller can photograph the game between rounds without
+    // reaching into the subsystems the facade hides. Every one of these is read-only: the
+    // facade still owns all mutation, so exposing them does not weaken the encapsulation.
+
+    public Board getBoard() {
+        return board;
+    }
+
+    public List<AbstractPlayer> getPlayers() {
+        return List.copyOf(players);
+    }
+
+    public GameMode getGameMode() {
+        return gameMode;
+    }
+
+    /** Rounds completed so far. */
+    public int getRoundNumber() {
+        return roundNumber;
+    }
+
+    /** Players in the order they finished; empty until someone gets all four pieces home. */
+    public List<AbstractPlayer> getFinishingOrder() {
+        return List.copyOf(winTracker.getFinishingOrder());
+    }
+
+    /** The player whose turn is next. */
+    public AbstractPlayer getCurrentPlayer() {
+        return turnManager.getCurrentPlayer();
     }
 
 }
