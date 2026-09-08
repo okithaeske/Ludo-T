@@ -62,14 +62,15 @@ implementation.
 | Criterion | Weight | Top band requires | Status |
 |---|---|---|---|
 | Quality of the GUI | 10% | many features integrated | ✅ done |
-| Server-side concurrency | 25% | multiple clients, simultaneous, **queued** | ⚠️ `RequestQueue` built; needs test clients to *evidence* |
-| Client-side concurrency | 25% | **two test clients**, async, rapid succession | ❌ not built (step 6) |
+| Server-side concurrency | 25% | multiple clients, simultaneous, **queued** | ✅ built **and evidenced** — 🟢 queue at 32/32, 156 caller-runs, 2,000/2,000 answered |
+| Client-side concurrency | 25% | **two test clients**, async, rapid succession | ✅ `client.testing` (step 6) — 🟢 2 sockets × 4 threads, 2,376 pushes received unprompted |
 | Architecture | 20% | client, server, database as **three applications** | ❌ DB tier not built (step 5) |
 | Critical discussion | 20% | *all* mechanisms, insightful justification | ✅ this document + §5 of notes |
 
-**Consequence for prioritisation.** 45% of the marks are gated by two unbuilt steps. The
-threading analysis below is already complete and serves the 20% criterion; it should not
-consume more build time. Order: **test clients → database tier → benchmark harness**.
+**Consequence for prioritisation.** With step 6 done, **20% is now gated by one unbuilt step**
+(Architecture — the database tier). The threading analysis below already serves the 20%
+discussion criterion and should not consume more build time. Remaining order: **database tier →
+outbound-queue defect (§2.1) → benchmark harness → report**.
 
 ---
 
@@ -83,13 +84,59 @@ consume more build time. Order: **test clients → database tier → benchmark h
       ✅ built                        ✅ built                    ❌ step 5
 ```
 
-🟢 **MEASURED:** `powershell -File run-tests.ps1` → **172/172 tests pass**, 28 containers,
-2.5 s. `build.ps1` → 123 production files compile. JDK: Temurin 25.0.1.
+🟢 **MEASURED:** `powershell -File run-tests.ps1` → **175/175 tests pass**, 29 containers,
+3.5 s. `build.ps1` → 130 production files compile. JDK: Temurin 25.0.1.
 
 ⚠️ `coverage.ps1` reports 277/284 — 7 phantom failures from stale class files in `out\test\`
 and `out\coverage-test\` (an old `test.test.*` package layout compiled against a superseded
 `EffectHandler` constructor). Pre-existing, unrelated to any design decision here, fixable with
 two `Remove-Item` lines. **Do not cite the 284 number anywhere.**
+
+---
+
+### 2.1 Open defect — a response can be the frame that gets dropped 🟢 MEASURED
+
+Found by the step-6 load clients, on their first serious run.
+
+**The symptom.** Four clients × eight threads × 250 CONTROL-mix requests, all subscribed to the
+four games under test: **348 of 8,000 requests were never answered.** No error, no rejection —
+the callers simply waited.
+
+**The diagnosis, from the server's own counters.** `accepted +8,325`, `completed +8,325`. The
+inbound queue took every request and a worker finished every one. The response was produced and
+then discarded on the way out.
+
+**The cause.** `net/ClientConnection` uses **one** bounded outbound queue for both responses and
+pushes, and drops the *oldest* frame when it fills. Discarding old state is right for a
+snapshot — a client behind on state wants the current board, not a backlog of superseded ones —
+and wrong for a response, which is the other half of a request somebody is waiting on. Under
+63,871 pushes in a single run the queue overflowed and some of the sacrificed frames were
+responses.
+
+```
+  session threads ──push──┐
+                          ├──▶ [ one bounded queue, drop-oldest ] ──▶ writer ──▶ socket
+  request workers ──resp──┘            ▲
+                                       └── a response evicted here is never retried,
+                                           and its caller waits forever
+```
+
+**Isolation 🟢.** The identical run with `--subscribe=false` answered **8,000 of 8,000**. One
+flag separates the two outcomes, which makes this reproducible on demand rather than an
+anecdote.
+
+**The fix, when it is made.** Separate the two classes of frame — a response is never
+droppable, an event is. Either two queues drained with responses first, or one queue whose
+eviction scans past responses to sacrifice the oldest *event*. If the queue then contains
+nothing but responses, blocking the request worker is the honest outcome: that is backpressure,
+and it is the same argument already made for the inbound queue in §5 of the notes.
+
+**Why it is recorded rather than quietly patched.** The outbound policy is a documented design
+decision with a stated trade-off. Changing it is a mechanism change, and it belongs in the
+mechanism table with before/after evidence — this run is the "before". The class javadoc already
+half-anticipated the hazard ("responses … are only ever dropped under the same extreme
+pressure"); what the measurement adds is that "extreme" turned out to mean four clients on
+loopback.
 
 ---
 
@@ -579,9 +626,14 @@ tutor can re-run.
 
 ### 9.5 Depends on step 6
 
-The load numbers come from the test clients (`client.testing.TestClientMain`). Building those
-first serves the 25% client-side criterion *and* produces this section's inputs. **Do not build
-a separate benchmark harness before the test clients exist.**
+The test clients now exist. `run-testclients.ps1` drives them, `--csv=path` appends one row per
+run, and `-Processes N` spreads the load across separate JVMs so a shared heap cannot be blamed
+for the tail. The sweep in §9.2 should call it once per configuration and collect the CSV — do
+not write a second harness.
+
+One caution carried over: on a subscribed run the current build loses a few responses
+(§2.1), so **fix that before quoting any figure from a subscribed sweep**, or run the sweep
+with `--subscribe=false` and say so.
 
 ---
 
@@ -613,13 +665,16 @@ one cell and never added to another. A frozen game is bad; a silently corrupted 
   NOW ──▶ [ tutor reviews the GUI ]        ← brief step 2 checkpoint, currently blocking
              │
              ▼
-   1.  client.testing.TestClientMain       25%  ← two+ async clients, rapid succession
-             │                                    ALSO produces §9's load inputs
+   ✅  client.testing.TestClientMain       25%  ← DONE: two+ async clients, rapid succession
+             │                                    §9's load inputs now exist
              ▼
-   2.  persistence/ + H2 as own process    20%  ← three applications; db/schema.sql, db/seed.sql
+   1.  persistence/ + H2 as own process    20%  ← three applications; db/schema.sql, db/seed.sql
              │                                    seam is GameRepository.NO_OP in ServerMain
              ▼
-   3.  benchmark harness (§9)              20%  ← fills the 🔴 slots
+   2.  outbound-queue defect (§2.1)             ← a response must never be the frame dropped
+             │                                    pair it with §9, so before/after is one sitting
+             ▼
+   3.  benchmark harness (§9)              20%  ← fills the 🔴 slots; drive it with run-testclients.ps1
              │
              ▼
    4.  report assembly                          ← from IMPLEMENTATION-NOTES.md + this document

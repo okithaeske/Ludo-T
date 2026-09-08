@@ -11,8 +11,8 @@ than just a fact.
 > It is written as a standalone handoff for another agent. Read it first when resuming.
 
 **Module:** COMP63038 · **Weight:** 50% · **Due:** 09 Oct 2026
-**Status:** plan steps 1–4 complete. Persistence (step 5), load clients (step 6) and the
-report (step 7) remain.
+**Status:** plan steps 1–4 and 6 complete. Persistence (step 5) and the report (step 7) remain,
+plus one open defect the step-6 clients found — see §6b.
 
 ### How this document is curated
 
@@ -64,7 +64,7 @@ Entities              model/  enums/                      ← unchanged, plus Ra
 Use cases             engine/  player/  player.strategy/  ← unchanged rules
                       app/  app.usecase/  app.port/  app.model/     ← NEW
 Interface adapters    adapter/                                      ← NEW
-Frameworks & drivers  net/  ui/  shared/  server/  client/          ← NEW
+Frameworks & drivers  net/  ui/  shared/  server/  client/  client.testing/          ← NEW
 ```
 
 **The rule, enforced by import direction:** `model`, `enums`, `engine`, `player` and `logger`
@@ -555,6 +555,126 @@ auto-reconnect with re-subscribe · non-blocking toasts · keyboard shortcuts.
 
 ---
 
+## 6b. Step 6 — the load clients (`client.testing`)
+
+### The forcing constraint
+
+Two criteria, worth 50% between them, are about behaviour under simultaneous load: the server
+must accept and **queue** simultaneous requests from fast automatic clients (25%), and there
+must be **two test clients** sending asynchronously in rapid succession (25%). Neither can be
+evidenced by the GUI. A person cannot click fast enough to fill a 32-deep queue, and a
+screenshot of a window that still responds is not a measurement. Every mechanism was already
+built in step 3 — what was missing was proof that any of it ever engages.
+
+### Options considered
+
+| Option | Its actual failure mode |
+|---|---|
+| Script the existing `SmokeClient` from a file | Sequential by construction — one input stream, one command at a time. It can prove a push arrives unprompted; it can never produce concurrency. |
+| A server-side benchmark calling the interactors directly | Skips the socket, the codec, the per-connection reader threads and `RequestQueue` — that is, skips everything the two criteria are about. It would measure the engine and report it as a server. |
+| JMeter or Gatling | Both speak HTTP; this protocol is Java serialisation over a raw socket, so either needs a custom sampler written anyway. It would also add a jar to a project whose production classpath is deliberately JDK-only. |
+| `client.testing` — the GUI client's threading shape, driven by threads instead of hands ✅ | — |
+
+### What was chosen, and the cost paid
+
+`client.testing.TestClientMain` drives N `LoadClient`s, each owning **one socket and one sender
+thread**, each with M worker threads that fire requests and never wait for the answer. N sockets
+means N genuinely independent clients, so the server's per-connection reader threads and
+outbound queues actually participate — N threads sharing one connection would have exercised
+none of that.
+
+Three details carry the design:
+
+- **Asynchrony is structural, not decorative.** A worker calls `send()` and immediately loops
+  round to build the next request; it never touches the returned future. Answers are correlated
+  by request id on the receiver thread — the same mechanism the Swing client uses to stay live.
+  A synchronous harness would measure round-trip time × thread count and could never fill a
+  queue.
+- **Every request takes a permit.** Sending with no limit is not more impressive, it is broken:
+  the loop outruns the socket and the excess piles up in the pending map until the client dies
+  of memory exhaustion before the server is ever stressed. A per-client semaphore
+  (`--inflight`) bounds outstanding work, which is deliberately the same shape as the server's
+  bounded inbound queue, and turns "how hard does this client lean" into a flag.
+- **The sampler runs outside the load.** Queue depth is deepest *during* a run and zero by the
+  end, so a before/after pair would report a maximum of zero. A separate thread polls
+  `GET_METRICS` on the control connection, so the monitor never appears in its own figures.
+
+**The cost.** `AsyncConnection` duplicates roughly thirty lines of correlation logic from
+`client.ServerConnection`. They cannot be merged: the single most important thing
+`ServerConnection` does is marshal every listener onto the Swing EDT, which is exactly wrong
+here — funnelling every load client through one thread would measure Swing, not the server.
+Extracting a shared base with an injected dispatch strategy was rejected as putting a seam
+through working GUI code to serve a test harness. The duplication is bounded, and
+`ProtocolCodecTest` already covers the behaviour underneath it.
+
+### Evidence 🟢 MEASURED
+
+All four runs: Temurin 25.0.1, loopback, one 8-core Windows host, server started deliberately
+small at `--workers=2 --queue=32` so saturation is reachable. `--seed` fixed, so the command
+sequence repeats exactly.
+
+| Run | Clients × threads | Mix | Requests | Answered | Wall | Throughput | p50 | p99 | Queue high-water | Caller-runs |
+|---|---|---|---|---|---|---|---|---|---|---|
+| A | 2 × 4, in-flight 64 | MIXED | 2,000 | **2,000** | 0.37 s | 5,352/s | 19 ms | 54–63 ms | **32 / 32** | 156 |
+| B | 2 × 4, in-flight 64 | READ | 2,000 | **2,000** | 0.23 s | 8,617/s | 12 ms | 29–31 ms | 1 / 32 | 52 |
+| C | 4 × 8, in-flight 128, unsubscribed | CONTROL | 8,000 | **8,000** | 0.57 s | 13,926/s | 23 ms | 83–84 ms | 11 / 32 | 2,343 |
+| D | 4 × 8, in-flight 128, subscribed | CONTROL | 8,000 | 7,652 | — | — | 17 ms | 140–185 ms | 5 / 32 | 751 |
+
+Run A is the one to quote for the server-side criterion: the queue reached capacity,
+caller-runs engaged 156 times, and **every one of 2,000 requests was still answered** —
+throttled, never dropped. The same run delivered **2,376 pushes** to two clients that asked for
+none of them, which is the client-side criterion evidenced in the same run.
+
+Run D is the one that found a bug.
+
+### The defect this found in its first hour 🟢 MEASURED
+
+Run D — identical to run C except that its clients also subscribed — lost **348 of 8,000
+responses**. The server's own counters exonerate the engine and the inbound queue:
+`accepted +8,325`, `completed +8,325`. Every request was routed and answered. The answer was
+then thrown away on the way out.
+
+`net/ClientConnection` uses **one** bounded outbound queue for both responses and pushes, and
+discards the *oldest* frame when it fills. That policy is right for a snapshot — a client behind
+on state wants the current board, not a backlog of superseded ones — and wrong for a response,
+which is the other half of a request somebody is waiting on. Under a 63,871-event push flood the
+queue overflowed and the sacrificed frames included responses; the caller then waits forever for
+an answer that no longer exists. The class javadoc already half-anticipated this ("responses …
+are only ever dropped under the same extreme pressure"), which is not a defence: the harness
+reached that pressure on its first serious run, on loopback, with four clients.
+
+Isolating it took one flag — the same run with `--subscribe=false` answered **8,000 of 8,000**.
+
+The fix is to separate the two classes of frame: a response is never droppable, an event is.
+It is deliberately **not** applied yet, because changing the outbound policy is a server design
+decision that belongs in §5 with its trade-off recorded, not a quiet edit made while building a
+test client.
+
+### Known weaknesses of this harness
+
+Volunteer these; do not let them be found.
+
+1. **Loopback is not a network.** Every figure omits real latency, loss and MTU effects. The
+   absolute milliseconds mean little; the *comparisons between runs* are what carry weight.
+2. **The latency includes the client's own scheduling.** The clock starts at `send()`, so a
+   sample includes sender-queue time on the client. That is deliberate — it is what a caller
+   experiences — but it is not "server time" and must never be quoted as such.
+3. **One JVM shares a heap and a GC with itself.** A collection pause inside the harness
+   inflates every client's tail at once. `run-testclients.ps1 -Processes N` exists for exactly
+   this: separate JVMs remove the shared-heap objection when demonstrating rather than measuring.
+4. **The sampler can miss the peak.** Queue depth is polled every 100 ms, and a sub-millisecond
+   burst passes between samples — run A's first attempt sampled a depth of 0 while caller-runs
+   fired 716 times. The saturation counter is the stronger witness: the queue increments it
+   itself, once per request that found it full, and cannot miss an event the way a poll can.
+5. **The CSV's aggregate percentile is the worst per-command percentile**, not a true merged
+   one, because merging would mean copying every sample array again. Conservative in the right
+   direction, but not the same statistic — the per-command table is the honest one.
+6. **`MIXED` and `CONTROL` mutate the games they measure.** Pauses and resumes from eight
+   threads churn the games under test, so push counts vary between runs even under a fixed seed.
+   `READ` is the mix for comparable latency figures.
+
+---
+
 ## 7. Design patterns
 
 Reusing Assignment 1's patterns is the *stronger* position: the Architecture criterion is
@@ -594,6 +714,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1        # compile src/ into ou
 powershell -ExecutionPolicy Bypass -File run-server.ps1   # server tier
 powershell -ExecutionPolicy Bypass -File run-client.ps1   # GUI client
 powershell -ExecutionPolicy Bypass -File run-client.ps1 -ServerHost 192.168.1.20  # 2nd machine
+powershell -ExecutionPolicy Bypass -File run-testclients.ps1                     # load clients
 ```
 
 > `run-tests.ps1` compiles only `test/` and assumes `out/` is current. **Run `build.ps1`
@@ -601,6 +722,23 @@ powershell -ExecutionPolicy Bypass -File run-client.ps1 -ServerHost 192.168.1.20
 
 Server flags: `--port=5599 --workers=4 --queue=256 --metrics=1000`. Small worker/queue values
 make the queue visibly fill during the load demonstration.
+
+### The load demonstration, in two commands
+
+```powershell
+powershell -ExecutionPolicy Bypass -File run-server.ps1 -Workers 2 -QueueCapacity 32
+powershell -ExecutionPolicy Bypass -File run-testclients.ps1 -Clients 2 -Threads 4
+```
+
+The small server is the point: two workers and a 32-deep queue put the queue at capacity within
+a fraction of a second, so the report prints a high-water mark and a caller-runs count rather
+than a flat zero. Load flags: `--clients --threads --requests --duration --games --mix
+--inflight --seed --subscribe --csv` (`--help` lists them all). `-Processes N` launches N
+separate JVMs, which is the version to run when demonstrating rather than measuring, since
+nothing is then shared between the clients at all.
+
+A GUI client left connected during a load run keeps repainting throughout — the same evidence
+as the numbers, in the form a tutor can see across the room.
 
 ### Headless client for scripted demos
 
@@ -625,7 +763,7 @@ java -cp out client.SmokeClient localhost 5599 < demo.txt
 
 ## 9. Testing
 
-**172 tests, all passing** (138 original + 34 new).
+**175 tests, all passing** (138 original + 37 new).
 
 | Suite | Guards |
 |---|---|
@@ -635,6 +773,7 @@ java -cp out client.SmokeClient localhost 5599 < demo.txt
 | `GameSessionTest` | lifecycle, snapshot consistency, concurrent independence |
 | `RequestRouterTest` | whole adapter+app stack **with no socket anywhere** |
 | `ServerPushIntegrationTest` | two clients over real sockets; push visibility; burst load |
+| `LoadHarnessTest` | the harness itself: percentile arithmetic, nothing lost under saturation, no errors when lifecycle commands race on one game |
 
 ### Verified live
 
@@ -643,15 +782,19 @@ java -cp out client.SmokeClient localhost 5599 < demo.txt
 - GUI **does not** create anything on its own: game list empty before launch and still empty
   12 s after, with the window open.
 
-### Three defects the live run caught that tests had not
+### Four defects the live runs caught that tests had not
 
 1. `subscribers` always 0 — the controller updated the connection's routing set but never the
    session's viewer count, leaving `GameSession.addSubscriber` dead code.
 2. Viewer counts leaked on disconnect — a crashed client inflated a game's count permanently.
 3. `SmokeClient` printed a stack trace on disconnect instead of a clean message.
+4. **Responses can be dropped on the way out** under a heavy push flood — one bounded outbound
+   queue serves both responses and events, and its oldest-first drop policy does not distinguish
+   them. Found by the step-6 load clients, reproduced on demand, diagnosed with the server own
+   counters (`accepted == completed`), and isolated with a single flag. See §6b. Still open.
 
-All three only appeared by **running the thing**. That is the argument for building the GUI
-against a server that already worked.
+All four only appeared by **running the thing** — and the fourth needed a client that could
+send faster than a person can click, which is the argument for step 6 existing at all.
 
 ---
 
@@ -660,8 +803,8 @@ against a server that already worked.
 | Step | Work |
 |---|---|
 | 5 | `persistence/` + H2 as its own process; `db/schema.sql`, `db/seed.sql`; async writer; leaderboard/history tabs. `GameRepository.NO_OP` is the seam — swap one argument in `ServerMain`. |
-| 6 | `client.testing.TestClientMain` + `run-testclients.ps1` — N headless clients × M threads, latency percentiles, observed queue depth. |
 | 7 | Report: (a) Clean Architecture across tiers, (b) critical analysis of concurrency mechanisms, with the RNG singleton as the worked example and §5 "the three mechanisms considered" as the threading example. |
+| 6b | **Open defect from step 6**: split `ClientConnection`s outbound queue so a response is never the frame sacrificed. See §6b. Small, contained, and it is what stands between run D and a clean sweep. |
 | 7b | Benchmark harness: hosted-games sweep at 10 / 100 / 500 / 1000 recording thread count + memory, run against both the platform-thread build (via git history) and the virtual build, plus one `ulimit -u 500` hard-fail run. Builds on the step-6 test clients. |
 
 ### Rubric map (from `docs/Assignment 2 - Brief (1) (1).pdf`)
@@ -669,13 +812,15 @@ against a server that already worked.
 | Criterion | Weight | Top band needs | Status |
 |---|---|---|---|
 | Quality of the GUI | 10% | many features integrated | done |
-| Server-side concurrency | 25% | simultaneous requests from fast automatic clients, queued | `RequestQueue` done; **needs step 6 clients to evidence** |
-| Client-side concurrency | 25% | **two test clients** sending async requests in rapid succession | **step 6, not built** |
+| Server-side concurrency | 25% | simultaneous requests from fast automatic clients, queued | done and **evidenced** — §6b run A: queue at 32/32, 156 caller-runs, 2,000 of 2,000 answered |
+| Client-side concurrency | 25% | **two test clients** sending async requests in rapid succession | done — §6b: 2 sockets × 4 threads, no worker ever waits on an answer, 2,376 pushes received unprompted |
 | Architecture | 20% | client, server, database as **three different applications** | **step 5, not built** |
 | Critical discussion | 20% | *all* appropriate mechanisms discussed with insightful justification | §5 covers the threading set; breadth is the grade ladder, so keep rejected mechanisms in |
 
-Priority follows the weights: steps 6 and 5 gate the top band on 45%, and step 6 also
-generates the load numbers step 7b needs. Threading discussion is already written.
+Priority follows the weights. Step 6 is done, so the 50% across the two concurrency criteria is
+now evidenced rather than asserted, and the load numbers step 7b needs exist. **Step 5 is the
+only unbuilt thing still gating a top band** (Architecture, 20%), with the §6b defect as a
+small, contained job to do alongside it.
 
 ### Checkpoint
 

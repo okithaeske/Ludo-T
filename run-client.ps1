@@ -9,14 +9,15 @@
 # the board changing without being asked. Use -ServerHost to prove it across two
 # machines.
 #
-# NOTE: this currently launches the keyboard-driven SmokeClient. The Swing GUI
-# replaces it in the next step; the switch is one line here.
+# This launches the Swing GUI (client.ClientMain). The older keyboard-driven console
+# client is still there if you want it: -Smoke swaps to client.SmokeClient.
 # ─────────────────────────────────────────────────────────────────────────────
 
 param(
     [string]$ServerHost = "localhost",
     [int]$Port = 5599,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$Smoke
 )
 
 $Root   = $PSScriptRoot
@@ -28,4 +29,5 @@ if (-not $SkipBuild) {
 }
 
 Write-Host "`nConnecting to $ServerHost`:$Port..." -ForegroundColor Cyan
-& java -cp $OutDir client.SmokeClient $ServerHost $Port
+$MainClass = if ($Smoke) { "client.SmokeClient" } else { "client.ClientMain" }
+& java -cp $OutDir $MainClass $ServerHost $Port
