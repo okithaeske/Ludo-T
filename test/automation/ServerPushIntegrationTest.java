@@ -266,4 +266,44 @@ class ServerPushIntegrationTest {
 
         pool.shutdownNow();
     }
+
+    @Test
+    @DisplayName("should_answerEveryRequest_when_theSameClientIsAlsoBeingFloodedWithPushes")
+    void should_answerEveryRequest_when_theSameClientIsAlsoBeingFloodedWithPushes()
+            throws Exception {
+        // Arrange — the exact shape that lost 348 of 8,000 responses before the outbound queue
+        // was split (docs/DESIGN-RATIONALE.md 2.1): one connection that is simultaneously a
+        // heavy requester AND a subscriber to several fast games, so its own answers compete
+        // for queue space with the pushes those games generate.
+        TestClient busy = connect();
+        List<String> gameIds = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Response created = busy.call(Command.CREATE_GAME,
+                    Map.of("mode", "LUDO_T", "seed", String.valueOf(100 + i), "tickMillis", "1"));
+            String gameId = ((SessionSummaryDto) created.getPayload()).gameId();
+            gameIds.add(gameId);
+            busy.call(Command.SUBSCRIBE, Map.of("gameId", gameId));
+        }
+        for (String gameId : gameIds) {
+            busy.call(Command.START_GAME, Map.of("gameId", gameId));
+        }
+        // Let the push stream actually get going before the requests start.
+        Assertions.assertNotNull(busy.awaitEvent(ServerEventType.SNAPSHOT, 15_000),
+                "no pushes arrived, so this test would not be testing anything");
+
+        // Act — fire without waiting, so requests pile up against the incoming push flood.
+        int requestCount = 1_500;
+        List<CompletableFuture<Response>> all = new ArrayList<>();
+        for (int i = 0; i < requestCount; i++) {
+            all.add(busy.send(Command.GET_SNAPSHOT, Map.of("gameId", gameIds.get(i % 4))));
+        }
+
+        // Assert — a response may be delayed by the flood; it may never be discarded by it.
+        // Under the single drop-oldest queue this timed out with responses simply missing.
+        CompletableFuture.allOf(all.toArray(new CompletableFuture[0]))
+                .get(60, TimeUnit.SECONDS);
+        long answered = all.stream().filter(CompletableFuture::isDone).count();
+        Assertions.assertEquals(requestCount, answered,
+                "responses were evicted from the outbound queue by pushes");
+    }
 }

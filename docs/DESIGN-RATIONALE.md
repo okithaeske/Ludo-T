@@ -64,13 +64,13 @@ implementation.
 | Quality of the GUI | 10% | many features integrated | ✅ done |
 | Server-side concurrency | 25% | multiple clients, simultaneous, **queued** | ✅ built **and evidenced** — 🟢 queue at 32/32, 156 caller-runs, 2,000/2,000 answered |
 | Client-side concurrency | 25% | **two test clients**, async, rapid succession | ✅ `client.testing` (step 6) — 🟢 2 sockets × 4 threads, 2,376 pushes received unprompted |
-| Architecture | 20% | client, server, database as **three applications** | ❌ DB tier not built (step 5) |
+| Architecture | 20% | client, server, database as **three applications** | ✅ done — run-db.ps1 / run-server.ps1 / run-client.ps1 are three processes |
 | Critical discussion | 20% | *all* mechanisms, insightful justification | ✅ this document + §5 of notes |
 
-**Consequence for prioritisation.** With step 6 done, **20% is now gated by one unbuilt step**
-(Architecture — the database tier). The threading analysis below already serves the 20%
-discussion criterion and should not consume more build time. Remaining order: **database tier →
-outbound-queue defect (§2.1) → benchmark harness → report**.
+**Consequence for prioritisation.** Every rubric criterion now has code behind it. The
+outbound-queue defect that was the last open item is fixed and measured (§2.1). **The only
+remaining deliverable is the report**; its source material is §3, §5 and §6c of the notes plus
+this document. The optional benchmark sweep gates no band and should not consume build time.
 
 ---
 
@@ -116,24 +116,24 @@ instead of 192**: every suite discovered twice, under both its old and its new p
 
 ---
 
-### 2.1 Open defect — a response can be the frame that gets dropped 🟢 MEASURED
+### 2.1 Decision — splitting the outbound queue 🟢 FIXED AND MEASURED
 
-Found by the step-6 load clients, on their first serious run.
+The second-strongest piece of evidence in the project, and the only defect the load clients
+found on their own. Found by the step-6 harness on its first serious run; fixed 2026-09-14.
 
-**The symptom.** Four clients × eight threads × 250 CONTROL-mix requests, all subscribed to the
-four games under test: **348 of 8,000 requests were never answered.** No error, no rejection —
-the callers simply waited.
+**The symptom.** Four clients x eight threads x 250 CONTROL-mix requests, all subscribed to the
+games under test: **348 of 8,000 requests were never answered.** No error, no rejection — the
+callers simply waited.
 
 **The diagnosis, from the server's own counters.** `accepted +8,325`, `completed +8,325`. The
 inbound queue took every request and a worker finished every one. The response was produced and
-then discarded on the way out.
+then discarded on the way out — so the loss was downstream of everything the server counted.
 
-**The cause.** `net/ClientConnection` uses **one** bounded outbound queue for both responses and
-pushes, and drops the *oldest* frame when it fills. Discarding old state is right for a
+**The cause.** `net/ClientConnection` used **one** bounded outbound queue for both responses and
+pushes, and dropped the *oldest* frame when it filled. Discarding old state is right for a
 snapshot — a client behind on state wants the current board, not a backlog of superseded ones —
-and wrong for a response, which is the other half of a request somebody is waiting on. Under
-63,871 pushes in a single run the queue overflowed and some of the sacrificed frames were
-responses.
+and wrong for a response, which is the other half of a request somebody is waiting on. Under a
+push flood the queue overflowed and some of the sacrificed frames were responses.
 
 ```
   session threads ──push──┐
@@ -144,21 +144,54 @@ responses.
 ```
 
 **Isolation 🟢.** The identical run with `--subscribe=false` answered **8,000 of 8,000**. One
-flag separates the two outcomes, which makes this reproducible on demand rather than an
-anecdote.
+flag separated the two outcomes, which made this reproducible on demand rather than an anecdote.
 
-**The fix, when it is made.** Separate the two classes of frame — a response is never
-droppable, an event is. Either two queues drained with responses first, or one queue whose
-eviction scans past responses to sacrifice the oldest *event*. If the queue then contains
-nothing but responses, blocking the request worker is the honest outcome: that is backpressure,
-and it is the same argument already made for the inbound queue in §5 of the notes.
+**The fix.** Two queues, drained responses-first, because the two kinds of frame have opposite
+requirements and one queue cannot honour both:
 
-**Why it is recorded rather than quietly patched.** The outbound policy is a documented design
-decision with a stated trade-off. Changing it is a mechanism change, and it belongs in the
-mechanism table with before/after evidence — this run is the "before". The class javadoc already
-half-anticipated the hazard ("responses … are only ever dropped under the same extreme
-pressure"); what the measurement adds is that "extreme" turned out to mean four clients on
-loopback.
+```
+  session threads ──push──▶ [ events: 512, drop-OLDEST ]────┐
+                                                            ├──▶ writer ──▶ socket
+  request workers ──resp──▶ [ responses: 256, NEVER drop ]──┘   (responses first, always)
+                                   ▲
+                                   └── full? the request worker BLOCKS. That is backpressure,
+                                       the same argument already made for the inbound queue.
+```
+
+A `Semaphore` counts frames across both queues, so the writer parks when idle rather than
+polling, yet wakes for whichever queue received the frame. Event eviction happens under a
+producer-only lock, so a drop-and-replace leaves the queue's size — and therefore the permit
+count — unchanged.
+
+**🟢 MEASURED — before/after, identical parameters** (4 clients x 8 threads x 250 CONTROL,
+`--tick=1`, subscribed, loopback, 2026-09-14):
+
+| | Before (one queue) | After (split) |
+|---|---|---|
+| Requests answered | **7,940 / 8,000** ❌ | **8,000 / 8,000** ✅ |
+| Unanswered | **60** | **0** |
+| Wall time | 31.73 s | **1.26 s** |
+| Throughput | 250.2 req/s | **6,331.2 req/s** |
+| Pushes received | 44,264 | 24,002 |
+| Inbound saturation | +0 | +0 |
+
+Quote the answered/unanswered row as the result. The throughput row is a *consequence*, not an
+independent win: the "before" run spent 30 of its 31.73 seconds waiting out the harness timeout
+on responses that were never coming, so the run was stalled, not merely slower. Saying that
+plainly is the point of this document.
+
+**Regression test.** `ServerPushIntegrationTest`
+`should_answerEveryRequest_when_theSameClientIsAlsoBeingFloodedWithPushes` — one connection that
+is simultaneously a heavy requester and a subscriber to four `tick=1` games, firing 1,500
+requests without waiting. Verified to fail on the pre-fix code by reverting the class and
+re-running it: `TimeoutException`, the callers waiting exactly as the load run described.
+
+**Why this is worth a paragraph in the report.** The defect was not found by reading the code or
+by a unit test — the class javadoc had already half-anticipated it ("responses ... are only ever
+dropped under the same extreme pressure"). It was found by *building the automatic test clients
+the rubric asks for and then believing their output*. What the measurement added is that
+"extreme" turned out to mean four clients on loopback. That is the argument for load testing as
+a design tool rather than a box to tick.
 
 ---
 

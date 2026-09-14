@@ -237,7 +237,10 @@ selected and others rejected. For the record, what is actually running:
 | bounded `ThreadPoolExecutor` + `ArrayBlockingQueue` + CallerRuns backpressure | `RequestQueue` |
 | thread confinement (actor) + virtual threads | `GameSession` |
 | `ScheduledExecutorService` | session ticks; metrics broadcast |
-| bounded queue with oldest-drop | per-connection outbound |
+| bounded queue with oldest-drop | per-connection outbound **events** |
+| bounded queue, never dropped, producer blocks | per-connection outbound **responses** |
+| counting `Semaphore` | waking the writer across both outbound queues |
+| `ReentrantLock` (producer-only) | atomic evict-then-offer on the event queue |
 | `ConcurrentHashMap` | `SessionRegistry`; client's pending-request map |
 | `volatile`, `AtomicInteger`, `AtomicLong` | session state, tick interval, subscriber counts, id sequence |
 | `CompletableFuture` | every use case's return path |
@@ -431,9 +434,16 @@ wanted: no request is ever silently lost, and the connection thread that submitt
 for the duration, so it stops reading that socket and the flooding client is throttled at
 source. Backpressure, not data loss.
 
-**Outbound (per `ClientConnection`)** — bounded; when full the **oldest** pending frame is
-dropped. A client that has fallen behind wants the current board, not a backlog of superseded
-ones.
+**Outbound (per `ClientConnection`)** — **two** bounded queues, because the two kinds of frame
+have opposite requirements and one queue cannot honour both. *Events* (512): when full the
+**oldest** is dropped, because a client that has fallen behind wants the current board, not a
+backlog of superseded ones. *Responses* (256): **never** dropped, because a response is the
+other half of a request somebody is waiting on and there is nothing to retry; when full the
+request worker blocks, which is backpressure rather than loss. The writer always drains
+responses first, so a push flood can delay an answer but cannot displace one.
+
+This split was not a design insight — it was forced by a defect the load clients found. See
+§6b.
 
 An unbounded queue does not remove a limit — it converts a slowdown into an out-of-memory
 failure.
@@ -657,10 +667,28 @@ reached that pressure on its first serious run, on loopback, with four clients.
 
 Isolating it took one flag — the same run with `--subscribe=false` answered **8,000 of 8,000**.
 
-The fix is to separate the two classes of frame: a response is never droppable, an event is.
-It is deliberately **not** applied yet, because changing the outbound policy is a server design
-decision that belongs in §5 with its trade-off recorded, not a quiet edit made while building a
-test client.
+**Fixed 2026-09-14** by separating the two classes of frame: a response is never droppable, an
+event is. Two queues, drained responses-first; a counting `Semaphore` lets the writer park when
+idle yet wake for whichever queue received a frame; event eviction happens under a producer-only
+lock so a drop-and-replace leaves the queue size, and therefore the permit count, unchanged.
+When the response queue fills the request worker blocks — the same backpressure argument already
+made for the inbound queue, and the honest outcome when a client will not read its own answers.
+
+🟢 **MEASURED — before/after on identical parameters** (4 x 8 x 250 CONTROL, `--tick=1`,
+subscribed, loopback):
+
+| | Before (one queue) | After (split) |
+|---|---|---|
+| Answered | 7,940 / 8,000 ❌ | **8,000 / 8,000** ✅ |
+| Unanswered | 60 | **0** |
+| Wall time | 31.73 s | 1.26 s |
+| Throughput | 250.2 req/s | 6,331.2 req/s |
+
+Report the answered row as the result; the throughput row is a consequence of the "before" run
+stalling for 30 s on answers that were never coming, not an independent speed-up.
+
+Pinned by `ServerPushIntegrationTest.should_answerEveryRequest_when_theSameClientIsAlsoBeingFloodedWithPushes`,
+verified to fail (`TimeoutException`) against the reverted class.
 
 ### Known weaknesses of this harness
 
@@ -973,10 +1001,12 @@ is readable" two genuinely different moments.
    session's viewer count, leaving `GameSession.addSubscriber` dead code.
 2. Viewer counts leaked on disconnect — a crashed client inflated a game's count permanently.
 3. `SmokeClient` printed a stack trace on disconnect instead of a clean message.
-4. **Responses can be dropped on the way out** under a heavy push flood — one bounded outbound
-   queue serves both responses and events, and its oldest-first drop policy does not distinguish
+4. ~~**Responses can be dropped on the way out** under a heavy push flood~~ — **fixed**; the
+   outbound queue is now split by frame class, with before/after numbers in §6b. Originally: one
+   bounded queue served both responses and events, and its oldest-first drop policy did not
+   distinguish
    them. Found by the step-6 load clients, reproduced on demand, diagnosed with the server own
-   counters (`accepted == completed`), and isolated with a single flag. See §6b. Still open.
+   counters (`accepted == completed`), and isolated with a single flag. See §6b.
 
 All four only appeared by **running the thing** — and the fourth needed a client that could
 send faster than a person can click, which is the argument for step 6 existing at all.
@@ -988,7 +1018,7 @@ send faster than a person can click, which is the argument for step 6 existing a
 | Step | Work |
 |---|---|
 | 7 | Report: (a) Clean Architecture across tiers, (b) critical analysis of concurrency mechanisms, with the RNG singleton as the worked example and §5 "the three mechanisms considered" as the threading example. |
-| 6b | **Open defect from step 6**: split `ClientConnection`s outbound queue so a response is never the frame sacrificed. See §6b. Small, contained, and it is what stands between run D and a clean sweep. |
+| 6b | ~~Open defect from step 6~~ — **done 2026-09-14**: `ClientConnection`s outbound queue is split by frame class, so a response is never the frame sacrificed. Run D now sweeps clean, 8,000/8,000. See §6b. |
 | 7b | Benchmark harness: hosted-games sweep at 10 / 100 / 500 / 1000 recording thread count + memory, run against both the platform-thread build (via git history) and the virtual build, plus one `ulimit -u 500` hard-fail run. Builds on the step-6 test clients. |
 
 ### Rubric map (from `docs/Assignment 2 - Brief (1) (1).pdf`)
