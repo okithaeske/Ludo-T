@@ -49,6 +49,11 @@ if (-not (Test-Path $JacocoAgent)) {
 # JaCoCo 0.8.12 supports up to Java 23 class files.
 # Java 25 class files (default) cause IllegalClassFormatException.
 Write-Host "`nCompiling production sources (--release 23)..." -ForegroundColor Cyan
+# Both output trees are wiped first. javac only ever ADDS .class files, so a renamed, moved
+# or deleted class stays behind and JUnit keeps running the stale copy - which is what caused
+# this script to report 7 phantom failures against a superseded EffectHandler constructor.
+if (Test-Path $OutCov)     { Remove-Item -Recurse -Force $OutCov }
+if (Test-Path $OutCovTest) { Remove-Item -Recurse -Force $OutCovTest }
 New-Item -ItemType Directory -Force -Path $OutCov | Out-Null
 
 $mainFiles = @(Get-ChildItem -Path $SrcMain -Filter "*.java" -Recurse |
@@ -76,11 +81,12 @@ Remove-Item $ExecFile -ErrorAction SilentlyContinue
 # Assignment 2 tiers included alongside the Assignment 1 domain. The `main` classes
 # (server.ServerMain, client.*) are counted too even though they are entry points, so the
 # figure stays honest rather than flattered by excluding untested code.
-$includes = "engine/*:enums/*:logger/*:model/*:player/*:app/*:adapter/*:net/*:shared/*:server/*:client/*"
+$includes = "engine/*:enums/*:logger/*:model/*:player/*:app/*:adapter/*:net/*:shared/*:server/*:client/*:persistence/*:ui/*"
 & java "-javaagent:$JacocoAgent=destfile=$ExecFile,includes=$includes" `
        -jar $JunitJar `
        "--classpath=$OutCov" `
        "--classpath=$OutCovTest" `
+       "--classpath=$LibDir\h2.jar" `
        --scan-class-path `
        "--include-package=test" `
        --details=summary

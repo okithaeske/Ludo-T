@@ -2,6 +2,7 @@ package server;
 
 import adapter.GameController;
 import adapter.GameEventBroadcaster;
+import adapter.HistoryController;
 import adapter.LobbyController;
 import adapter.RequestRouter;
 import app.SessionRegistry;
@@ -9,6 +10,8 @@ import app.port.Clock;
 import app.port.GameRepository;
 import app.usecase.AbortGameUseCase;
 import app.usecase.CreateGameUseCase;
+import app.usecase.GetHistoryUseCase;
+import app.usecase.GetLeaderboardUseCase;
 import app.usecase.GetSnapshotUseCase;
 import app.usecase.ListGamesUseCase;
 import app.usecase.PauseGameUseCase;
@@ -76,7 +79,14 @@ public final class ServerAssembly implements AutoCloseable {
                 unsubscribeFromGame,
                 connections);
 
-        RequestRouter router = new RequestRouter(gameController, lobbyController);
+        // The history controller is the only one wired straight to the repository rather
+        // than to the session registry: its answers outlive every session.
+        HistoryController historyController = new HistoryController(
+                new GetHistoryUseCase(repository),
+                new GetLeaderboardUseCase(repository));
+
+        RequestRouter router = new RequestRouter(gameController, lobbyController,
+                historyController);
         this.server = new LudoServer(config.port(), router, requestQueue, connections);
     }
 

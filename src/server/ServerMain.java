@@ -3,8 +3,11 @@ package server;
 import app.port.Clock;
 import app.port.GameRepository;
 import net.ConnectionRegistry;
+import persistence.DatabaseConfig;
+import persistence.JdbcGameRepository;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,10 +29,9 @@ public final class ServerMain {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         ServerConfig config = ServerConfig.parse(args);
+        GameRepository repository = openRepository(DatabaseConfig.parse(args));
 
-        // GameRepository.NO_OP until the database tier is built — the port exists, so adding
-        // persistence later changes this one argument and nothing else.
-        ServerAssembly assembly = new ServerAssembly(config, GameRepository.NO_OP, Clock.SYSTEM);
+        ServerAssembly assembly = new ServerAssembly(config, repository, Clock.SYSTEM);
         assembly.start();
 
         ScheduledExecutorService metricsTicker =
@@ -40,7 +42,32 @@ public final class ServerMain {
                 + " queueCapacity=" + config.queueCapacity());
         System.out.println("[server] press Ctrl+C to stop");
 
-        awaitShutdown(assembly, metricsTicker);
+        awaitShutdown(assembly, metricsTicker, repository);
+    }
+
+    /**
+     * Connects to the database tier, or reports why it could not and carries on without one.
+     *
+     * <p>Deliberately never fatal. A missing database costs the History and Leaderboard tabs;
+     * refusing to start would cost the entire demonstration, and the most likely cause is
+     * simply that {@code run-db.ps1} has not been started yet. The line printed here tells the
+     * operator exactly which of the two states they are in, so a silently empty History tab is
+     * never a mystery.
+     */
+    private static GameRepository openRepository(DatabaseConfig dbConfig) {
+        if (dbConfig.isDisabled()) {
+            System.out.println("[server] database tier disabled (--db=off); history is not kept");
+            return GameRepository.NO_OP;
+        }
+        try {
+            JdbcGameRepository repository = JdbcGameRepository.connect(dbConfig);
+            System.out.println("[server] database tier at " + dbConfig.url());
+            return repository;
+        } catch (SQLException e) {
+            System.out.println("[server] no database tier: " + e.getMessage());
+            System.out.println("[server] start it with run-db.ps1; running without history");
+            return GameRepository.NO_OP;
+        }
     }
 
     private static ScheduledExecutorService startMetricsBroadcast(ConnectionRegistry connections,
@@ -63,16 +90,31 @@ public final class ServerMain {
     }
 
     /** Blocks until Ctrl+C. */
-    private static void awaitShutdown(ServerAssembly assembly, ScheduledExecutorService ticker)
-            throws InterruptedException {
+    private static void awaitShutdown(ServerAssembly assembly, ScheduledExecutorService ticker,
+                                      GameRepository repository) throws InterruptedException {
         CountDownLatch stopped = new CountDownLatch(1);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             System.out.println("\n[server] shutting down...");
             ticker.shutdownNow();
             assembly.close();
+            // Closed after the assembly, so every session has finished handing over its rows
+            // before the writer is asked to drain: the other order loses the last game.
+            closeRepository(repository);
             stopped.countDown();
             System.out.println("[server] stopped.");
         }, "shutdown"));
         stopped.await();
+    }
+
+    /** {@link GameRepository#NO_OP} is not closeable; the JDBC one is. */
+    private static void closeRepository(GameRepository repository) {
+        if (!(repository instanceof AutoCloseable closeable)) {
+            return;
+        }
+        try {
+            closeable.close();
+        } catch (Exception e) {
+            System.out.println("[server] database shutdown: " + e.getMessage());
+        }
     }
 }

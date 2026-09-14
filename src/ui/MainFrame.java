@@ -3,10 +3,12 @@ package ui;
 import client.ServerConnection;
 import shared.BoardSnapshot;
 import shared.Command;
+import shared.FinishedGameDto;
 import shared.Response;
 import shared.ServerEvent;
 import shared.ServerMetricsDto;
 import shared.SessionSummaryDto;
+import shared.StrategyRankingDto;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -17,6 +19,7 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
@@ -77,6 +80,7 @@ public final class MainFrame extends JFrame {
     private final PlayerStatusPanel players = new PlayerStatusPanel();
     private final EventLogPanel eventLog = new EventLogPanel();
     private final MetricsStrip metrics = new MetricsStrip();
+    private final HistoryPanel history = new HistoryPanel();
     private final JLabel toast = new JLabel("", JLabel.CENTER);
     private final Timer toastTimer;
     private final Timer reconnectTimer;
@@ -85,6 +89,7 @@ public final class MainFrame extends JFrame {
     private final Map<String, SessionSummaryDto> knownSessions = new HashMap<>();
 
     private JSplitPane rightSplit;
+    private JTabbedPane rightTabs;
 
     private ServerConnection connection;
     private String selectedGameId;
@@ -152,8 +157,24 @@ public final class MainFrame extends JFrame {
         rightSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, players, eventLog);
         rightSplit.setResizeWeight(0.35);
         rightSplit.setBorder(null);
-        rightSplit.setPreferredSize(new Dimension(SIDE_PANEL_WIDTH, 0));
-        rightSplit.setMinimumSize(new Dimension(240, 0));
+
+        // The right column is tabbed rather than taller: Live shows the session being watched,
+        // History shows what the database tier remembers about sessions that are gone. They
+        // never need to be read at the same time, and stacking a third panel here would have
+        // squeezed the event log to a few lines on a 125%-scaled display.
+        rightTabs = new JTabbedPane();
+        rightTabs.addTab("Live", rightSplit);
+        rightTabs.addTab("History", history);
+        rightTabs.setPreferredSize(new Dimension(SIDE_PANEL_WIDTH, 0));
+        rightTabs.setMinimumSize(new Dimension(240, 0));
+        // Loaded when the tab is opened, not on a timer: history only changes when a game
+        // ends, so polling it every second would query the database tier for nothing.
+        rightTabs.addChangeListener(event -> {
+            if (rightTabs.getSelectedComponent() == history) {
+                refreshHistory();
+            }
+        });
+        history.setRefreshAction(this::refreshHistory);
 
         // BorderLayout rather than nested JSplitPanes for the horizontal arrangement.
         // setDividerLocation is only honoured once a split pane has been validated, so on a
@@ -163,7 +184,7 @@ public final class MainFrame extends JFrame {
         // whatever is left. The one split pane kept is the vertical one inside EAST, where its
         // own preferred sizes are enough and no explicit divider placement is needed.
         root.add(left, BorderLayout.WEST);
-        root.add(rightSplit, BorderLayout.EAST);
+        root.add(rightTabs, BorderLayout.EAST);
         root.add(centre, BorderLayout.CENTER);
 
         setContentPane(root);
@@ -181,7 +202,7 @@ public final class MainFrame extends JFrame {
                 "[ui] frame=" + getContentPane().getWidth()
                         + " lobby=" + lobby.getParent().getWidth()
                         + " board=" + board.getWidth()
-                        + " side=" + rightSplit.getWidth()
+                        + " side=" + rightTabs.getWidth()
                         + " screen=" + java.awt.Toolkit.getDefaultToolkit().getScreenSize().width
                         + " scale=" + getGraphicsConfiguration().getDefaultTransform().getScaleX()));
     }
@@ -418,6 +439,50 @@ public final class MainFrame extends JFrame {
                 .exceptionally(error -> null);
     }
 
+    /**
+     * Reads both history tables from the database tier.
+     *
+     * <p>Two requests rather than one combined command: they answer different questions, are
+     * useful separately, and issuing them together costs nothing because neither blocks — the
+     * responses are correlated by request id and land independently.
+     */
+    private void refreshHistory() {
+        history.showStatus("Loading...");
+        connection.send(Command.GET_HISTORY)
+                .thenAcceptAsync(this::applyHistoryResponse, SwingUtilities::invokeLater)
+                .exceptionally(error -> {
+                    SwingUtilities.invokeLater(() ->
+                            history.showProblem("Could not read history: " + rootMessage(error)));
+                    return null;
+                });
+        connection.send(Command.GET_LEADERBOARD)
+                .thenAcceptAsync(this::applyLeaderboardResponse, SwingUtilities::invokeLater)
+                .exceptionally(error -> null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyHistoryResponse(Response response) {
+        if (!response.isOk() || !(response.getPayload() instanceof List<?> payload)) {
+            history.showProblem("Server could not read history: " + response.getMessage());
+            return;
+        }
+        List<FinishedGameDto> games = (List<FinishedGameDto>) payload;
+        history.showResults(games);
+        // An empty list is a legitimate answer, not a failure — the server may have been
+        // started with --db=off. Saying so beats an empty table with no explanation.
+        history.showStatus(games.isEmpty()
+                ? "No finished games stored. Is the database tier running? (run-db.ps1)"
+                : "Read from the database tier.");
+    }
+
+    @SuppressWarnings("unchecked")
+    private void applyLeaderboardResponse(Response response) {
+        if (!response.isOk() || !(response.getPayload() instanceof List<?> payload)) {
+            return;
+        }
+        history.showRankings((List<StrategyRankingDto>) payload);
+    }
+
     @SuppressWarnings("unchecked")
     private void applyLobbyResponse(Response response) {
         if (!response.isOk() || !(response.getPayload() instanceof List<?> payload)) {
@@ -481,6 +546,7 @@ public final class MainFrame extends JFrame {
         players.applyTheme();
         eventLog.applyTheme();
         metrics.applyTheme();
+        history.applyTheme();
         SwingUtilities.updateComponentTreeUI(this);
         repaint();
     }

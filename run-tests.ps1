@@ -13,6 +13,7 @@ $SrcTest  = "$Root\test"
 $OutMain  = "$Root\out"
 $OutTest  = "$Root\out\test"
 $JunitJar = "$Root\lib\junit-standalone.jar"
+$H2Jar    = "$Root\lib\h2.jar"
 
 # ── 1. Download JUnit 5 Console Standalone if missing ────────────────────────
 if (-not (Test-Path $JunitJar)) {
@@ -25,6 +26,13 @@ if (-not (Test-Path $JunitJar)) {
 
 # ── 2. Compile test sources ───────────────────────────────────────────────────
 Write-Host "`nCompiling test sources..." -ForegroundColor Cyan
+# Wiped first. javac only ever adds .class files, so a test that is renamed, moved to another
+# package or deleted leaves its old class behind and JUnit keeps running it from the stale
+# copy. That is how the three-way split into unit/integration/automation briefly reported 387
+# tests instead of 192 - every suite was discovered twice, under both its old and new package.
+if (Test-Path $OutTest) {
+    Remove-Item -Recurse -Force $OutTest
+}
 New-Item -ItemType Directory -Force -Path $OutTest | Out-Null
 
 $testFiles = @(Get-ChildItem -Path $SrcTest -Filter "*.java" -Recurse |
@@ -42,11 +50,16 @@ Write-Host "Compiled $($testFiles.Count) file(s)." -ForegroundColor Green
 
 # ── 3. Run all tests ──────────────────────────────────────────────────────────
 Write-Host "`nRunning tests...`n" -ForegroundColor Cyan
-& java -jar $JunitJar `
-    "--classpath=$OutMain" `
-    "--classpath=$OutTest" `
-    --scan-class-path `
-    "--include-package=test" `
-    --details=tree
+# h2.jar only on the RUN classpath, never the compile one: the persistence tests load
+# the driver through JDBC service discovery, exactly as the server does. When the jar is
+# absent PersistenceTierTest aborts itself rather than failing the suite.
+$junitArgs = @(
+    "--classpath=$OutMain"
+    "--classpath=$OutTest"
+)
+if (Test-Path $H2Jar) { $junitArgs += "--classpath=$H2Jar" }
+$junitArgs += @("--scan-class-path", "--include-package=test", "--details=tree")
+
+& java -jar $JunitJar @junitArgs
 
 exit $LASTEXITCODE

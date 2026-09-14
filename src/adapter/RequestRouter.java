@@ -28,13 +28,18 @@ public final class RequestRouter {
 
     private final Map<Command, Handler> handlers = new EnumMap<>(Command.class);
 
-    public RequestRouter(GameController games, LobbyController lobby) {
+    public RequestRouter(GameController games, LobbyController lobby,
+                         HistoryController history) {
         handlers.put(Command.PING, (request, client) -> lobby.ping(request));
         handlers.put(Command.CREATE_GAME, (request, client) -> lobby.create(request));
         handlers.put(Command.LIST_GAMES, (request, client) -> lobby.list(request));
         handlers.put(Command.GET_METRICS, (request, client) -> lobby.metrics(request));
         handlers.put(Command.SUBSCRIBE, lobby::subscribe);
         handlers.put(Command.UNSUBSCRIBE, lobby::unsubscribe);
+
+        handlers.put(Command.GET_HISTORY, (request, client) -> history.history(request));
+        handlers.put(Command.GET_LEADERBOARD,
+                (request, client) -> history.leaderboard(request));
 
         handlers.put(Command.START_GAME, (request, client) -> games.start(request));
         handlers.put(Command.PAUSE_GAME, (request, client) -> games.pause(request));

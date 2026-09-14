@@ -1,13 +1,17 @@
 package adapter;
 
+import app.model.FinishedGame;
 import app.model.GameSnapshot;
 import app.model.PieceView;
 import app.model.PlayerView;
 import app.model.SessionSummary;
+import app.model.StrategyRanking;
 import shared.BoardSnapshot;
+import shared.FinishedGameDto;
 import shared.PieceDto;
 import shared.PlayerDto;
 import shared.SessionSummaryDto;
+import shared.StrategyRankingDto;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -93,6 +97,42 @@ public final class SnapshotMapper {
         List<SessionSummaryDto> dtos = new ArrayList<>(summaries.size());
         for (SessionSummary summary : summaries) {
             dtos.add(toDto(summary));
+        }
+        return dtos;
+    }
+
+    public static FinishedGameDto toDto(FinishedGame game) {
+        return new FinishedGameDto(
+                game.gameId(),
+                game.mode(),
+                game.rounds(),
+                game.winnerColour(),
+                game.winnerStrategy(),
+                game.finishingOrder(),
+                game.finishedAtMillis());
+    }
+
+    public static List<FinishedGameDto> toFinishedDtos(List<FinishedGame> games) {
+        List<FinishedGameDto> dtos = new ArrayList<>(games.size());
+        for (FinishedGame game : games) {
+            dtos.add(toDto(game));
+        }
+        return dtos;
+    }
+
+    public static StrategyRankingDto toDto(StrategyRanking ranking) {
+        return new StrategyRankingDto(
+                ranking.strategy(),
+                ranking.gamesPlayed(),
+                ranking.wins(),
+                ranking.totalCaptures(),
+                ranking.averagePiecesHome());
+    }
+
+    public static List<StrategyRankingDto> toRankingDtos(List<StrategyRanking> rankings) {
+        List<StrategyRankingDto> dtos = new ArrayList<>(rankings.size());
+        for (StrategyRanking ranking : rankings) {
+            dtos.add(toDto(ranking));
         }
         return dtos;
     }

@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Every game the server is hosting.
@@ -70,13 +71,21 @@ public final class SessionRegistry {
     public GameSession create(GameMode mode, Long seed, long tickMillis) {
         String gameId = "g" + idSequence.incrementAndGet();
 
+        // The listener has to be handed to the builder before the engine exists, but the sink
+        // that wraps it wants to stamp each recorded line with the engine's round number. The
+        // holder closes that circle: it is written once, below, before any round can run.
+        AtomicReference<GameEngine> built = new AtomicReference<>();
+        EventSink recording = new RecordingEventSink(sink, repository, gameId,
+                () -> built.get() == null ? 0 : built.get().getRoundNumber());
+
         GameEngineBuilder builder = new GameEngineBuilder()
                 .withMode(mode)
-                .withListener(listenerFactory.create(gameId, sink));
+                .withListener(listenerFactory.create(gameId, recording));
         if (seed != null) {
             builder.withSeed(seed);
         }
         GameEngine engine = builder.build();
+        built.set(engine);
 
         GameSession session = new GameSession(gameId, mode, seed,
                 Math.max(MIN_TICK_MILLIS, tickMillis),

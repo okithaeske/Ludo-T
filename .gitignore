@@ -37,7 +37,15 @@ src.zip
 sources_list.txt
 lib/jacoco-extracted/
 lib/*.jar
-3sonar-project.properties
+sonar-project.properties
+
+### Database tier ###
+# The H2 data file is a build artifact - db/schema.sql and db/seed.sql rebuild it from
+# scratch (run-db.ps1 -Init). Committing it would put a binary in git that goes stale the
+# moment anyone runs a game.
+db/*.mv.db
+db/*.trace.db
+db/*.lock.db
 
 ### IDE files that landed inside src/ ###
 src/.idea/

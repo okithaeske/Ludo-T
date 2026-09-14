@@ -45,12 +45,18 @@ Assignment 1 was a single process: `Main` → `GameEngineBuilder.build()` → a 
 Assignment 2 is the same game rules running inside a three-process system:
 
 ```
-┌─────────────┐   Swing GUI      ┌─────────────┐   sockets    ┌──────────────┐
+┌─────────────┐   Swing GUI      ┌─────────────┐    JDBC      ┌──────────────┐
 │  client/ui  │ ───────────────▶ │   server    │ ───────────▶ │  H2 database │
 │  (process)  │ ◀─────────────── │  (process)  │              │  (process)   │
 └─────────────┘   server pushes  └─────────────┘              └──────────────┘
-                                                                 (step 5, not yet built)
+ run-client.ps1                   run-server.ps1                 run-db.ps1
+      :5599 ◀──── sockets ────▶        :5599  ────▶ tcp://localhost:9092
 ```
+
+Each arrow is a process boundary, and each is crossed by a different mechanism: framed Java
+objects over TCP on the left, JDBC on the right. The server is the only process that speaks
+both, and it depends on neither concretely — the client side through `shared`, the database
+side through `app.port.GameRepository`.
 
 **The game rules did not change.** All 138 original tests still pass untouched. That is the
 central claim of the Architecture section, and it is verifiable by running the suite.
@@ -64,19 +70,25 @@ Entities              model/  enums/                      ← unchanged, plus Ra
 Use cases             engine/  player/  player.strategy/  ← unchanged rules
                       app/  app.usecase/  app.port/  app.model/     ← NEW
 Interface adapters    adapter/                                      ← NEW
-Frameworks & drivers  net/  ui/  shared/  server/  client/  client.testing/          ← NEW
+Frameworks & drivers  net/  ui/  shared/  server/  client/  client.testing/
+                      persistence/                                  ← NEW
 ```
 
 **The rule, enforced by import direction:** `model`, `enums`, `engine`, `player` and `logger`
-never import `app`, `adapter`, `net`, `shared`, `server` or `client`.
+never import `app`, `adapter`, `net`, `shared`, `server`, `client` or `persistence`.
 
 To check it holds:
 
 ```powershell
 # Should return nothing.
 Select-String -Path src\model\*.java,src\engine\*.java,src\player\*.java `
-              -Pattern "import (app|adapter|net|shared|server|client|ui)\."
+              -Pattern "import (app|adapter|net|shared|server|client|ui|persistence)\."
 ```
+
+`persistence` sits in the outermost ring beside `net` and `ui`, and the same test applies to
+it in reverse: **nothing in `app` imports `persistence`**, only `app.port.GameRepository`,
+which `app` declares itself. The compile step proves it — `build.ps1` compiles all of `src/`
+with an empty classpath, which is only possible because no production class mentions H2.
 
 ### Why `app.model` duplicates `shared`
 
@@ -675,6 +687,122 @@ Volunteer these; do not let them be found.
 
 ---
 
+## 6c. Step 5 — the database tier (`persistence`, `db/`)
+
+### The forcing constraint
+
+The Architecture criterion (20%) tops out only when **client, server and database run as three
+different applications**. Two of the three already did. The brief's demonstration instructions
+add the practical half: the SQL that *creates and populates* the database must be runnable
+before the demonstration, and the database must be in its initial state when the tutor sits
+down. So this step is a real process with real DDL, not an embedded library and a `CREATE TABLE`
+buried in Java.
+
+### Options considered
+
+| Option | Its actual failure mode |
+|---|---|
+| Embedded H2 (`jdbc:h2:file:`) inside the server JVM | Simplest to run, and fails the criterion outright: the database would be a library the server links, not an application it talks to. Three processes is the whole requirement. |
+| MySQL or PostgreSQL as a service | Both satisfy the criterion, and both cost an installer, a Windows service and administrator rights before a timed demonstration. A tier that might not start is a worse risk than one that is slightly less impressive. |
+| Serialise results to a JSON or CSV file | No third process and no SQL, and the brief explicitly asks for SQL commands that create and populate a database. |
+| **H2 in TCP server mode** — chosen | A separate `java` process on port 9092, a real SQL dialect, one 2.6 MB jar fetched by the same Maven-Central pattern `run-tests.ps1` already uses for JUnit. No installer, no service, no admin rights. |
+
+### What was chosen, and the cost paid
+
+`run-db.ps1` starts H2 with `-tcp -tcpPort 9092`, so the database is visibly its own
+application in its own console window. `run-db.ps1 -Init` applies `db/schema.sql` then
+`db/seed.sql`; `-Reset` is the same command with the intent the brief asks for, since
+`schema.sql` drops every object before recreating it and is therefore safe to re-run.
+
+The cost is a third window at demonstration time, and one failure mode that did not exist
+before: the server can now be started against a database that is not up. That is handled
+rather than avoided — `ServerMain.openRepository` catches the failure, prints why, and falls
+back to `GameRepository.NO_OP`. **A forgotten `run-db.ps1` costs the History tab, never the
+demonstration.**
+
+### Why persistence cannot be allowed to block a game
+
+`recordSessionCreated`, `recordEvent` and `recordResult` are called from a game's own actor
+thread, mid-round. A JDBC call is a network round trip to another process. Inline, that would
+make each game's round rate a function of database latency, and a database that stopped
+answering would freeze every game that touched it — the simulation would be hostage to the
+tier that merely remembers it.
+
+So `JdbcGameRepository` turns each write into a task, `offer()`s it to a bounded
+`ArrayBlockingQueue`, and returns. One `db-writer` thread drains it and owns the only write
+connection, so no JDBC object is ever shared and the class needs no locks despite being written
+to by every game at once.
+
+This is the **third** appearance of the same answer in this system, which is the part worth
+making in the report:
+
+| Boundary | Queue | Policy when full |
+|---|---|---|
+| Client → server | `net.RequestQueue`, bounded | **Caller runs** — throttle the client, never lose a command |
+| Client → game | Each `GameSession`'s actor mailbox | Serialised per game; different games proceed in parallel |
+| Game → database | `JdbcGameRepository`, bounded | **Drop and count** — never delay a game to store history |
+
+The three differ only in what they do when full, and each policy follows from what the payload
+is worth. A dropped command is a visible failure to a user; a dropped history row costs a line
+in a table nobody is reading yet. Being able to say *why the same mechanism takes three
+different policies here* is worth more than any one of them individually.
+
+### Reads are the opposite, deliberately
+
+`findRecentResults` and `findStrategyLeaderboard` run on a request-worker thread, whose entire
+purpose is that slow work never touches a game. They block, take their own short-lived
+connection, and return the current truth. A read that borrowed the writer's connection would
+have to wait for it to be idle, reintroducing exactly the coupling the queue exists to remove.
+
+### What the aggregation says about layering
+
+`strategy_leaderboard` is a **view in the database**, not a loop in Java. Counting wins in the
+server would mean shipping every player row of every game across a process boundary in order to
+add them up. More importantly it is the one question in this system that no live session can
+answer: it aggregates over games whose actors no longer exist. Persistence is not decoration
+here — it is the only way the question can be asked at all.
+
+### Evidence 🟢 MEASURED
+
+Three processes, one live game, 2026-09-08:
+
+| Observation | Value |
+|---|---|
+| History before the run (seeded by `seed.sql`) | 6 finished games |
+| History after one live game | 7 finished games, `g1` newest |
+| Leaderboard before / after | `RacerStrategy` 3 wins of 6 → **4 wins of 7** |
+| `game_event` rows for `g1` | **7,512**, written at a 1 ms tick |
+| Rows dropped by the writer | **0** |
+| `player_result` rows for `g1` | 4, places 1–4 derived from the finishing order |
+| Server line on start-up | `[server] database tier at jdbc:h2:tcp://localhost:9092/ludo` |
+
+The 1 ms tick is the interesting part: the writer kept up with a game running roughly two
+hundred times faster than any demonstration will, and still dropped nothing. The drop path is
+therefore proved by test rather than by the demo — `PersistenceTierTest` floods a repository
+whose queue capacity is **1** with 5,000 rows and asserts both that the caller is never blocked
+and that every row is written, dropped or still queued, never silently lost.
+
+### The compile-time proof of the inversion
+
+`h2.jar` is on the **runtime** classpath only. `build.ps1` compiles all of `src/` with no
+classpath at all, because nothing under `src/` imports an H2 class — `persistence` speaks
+`java.sql`, and the driver is found by JDBC service discovery. Deleting the `persistence`
+package and passing `GameRepository.NO_OP` leaves a server that still compiles and still plays
+games. That is the practical test of whether the dependency inversion is real rather than drawn.
+
+### Known weaknesses of this tier
+
+- **Reads open a connection per call.** Fine at the rate a GUI tab is opened; it would need a
+  pool if history were polled.
+- **`game_event` grows without bound.** 7,512 rows from one fast game; a long session would
+  need pruning or a retention policy.
+- **No migration story.** `schema.sql` drops and recreates, which is right for an assignment and
+  wrong for anything with data worth keeping.
+- **The writer retries nothing.** A row that fails once is counted and abandoned. Retrying
+  correctly needs idempotent writes, and these are not.
+
+---
+
 ## 7. Design patterns
 
 Reusing Assignment 1's patterns is the *stronger* position: the Architecture criterion is
@@ -711,6 +839,8 @@ patterns still standing in place with a network under them.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File build.ps1        # compile src/ into out/
+powershell -ExecutionPolicy Bypass -File run-db.ps1 -Init # database tier (first run only)
+powershell -ExecutionPolicy Bypass -File run-db.ps1       # database tier
 powershell -ExecutionPolicy Bypass -File run-server.ps1   # server tier
 powershell -ExecutionPolicy Bypass -File run-client.ps1   # GUI client
 powershell -ExecutionPolicy Bypass -File run-client.ps1 -ServerHost 192.168.1.20  # 2nd machine
@@ -718,10 +848,19 @@ powershell -ExecutionPolicy Bypass -File run-testclients.ps1                    
 ```
 
 > `run-tests.ps1` compiles only `test/` and assumes `out/` is current. **Run `build.ps1`
-> first**, or a stale `out/` silently tests old code.
+> first**, or a stale `out/` silently tests old code. It wipes `out/test` itself, so a renamed
+> or moved test never runs from a stale class.
 
-Server flags: `--port=5599 --workers=4 --queue=256 --metrics=1000`. Small worker/queue values
-make the queue visibly fill during the load demonstration.
+Server flags: `--port=5599 --workers=4 --queue=256 --metrics=1000 --db=URL`. Small
+worker/queue values make the queue visibly fill during the load demonstration. `--db=off`
+runs with no database tier at all.
+
+**Three windows, in this order** — database, server, client. Before a demonstration run
+`run-db.ps1 -Reset`, which is what the brief means by the database being in its initial
+state: it drops every object, reapplies `schema.sql`, and repopulates the six seeded games
+from `seed.sql`, so the History and Leaderboard tabs have something to show before a single
+live game has been played. `run-db.ps1 -Web` additionally serves the H2 Console on
+<http://localhost:8082>, a convenient way to show rows arriving as a game finishes.
 
 ### The load demonstration, in two commands
 
@@ -763,17 +902,63 @@ java -cp out client.SmokeClient localhost 5599 < demo.txt
 
 ## 9. Testing
 
-**175 tests, all passing** (138 original + 37 new).
+**195 tests, all passing.** One command runs everything:
+`powershell -ExecutionPolicy Bypass -File run-tests.ps1`.
+
+The suite is split into three packages by *what a failure would mean*, so the cost of a red
+test is obvious before opening it:
+
+```
+test/unit/          22 files   one class, no other tier
+test/integration/    2 files   several components, or a real database
+test/automation/     3 files   the running system, driven by automated clients
+```
+
+### `test/unit/` — one class under test
+
+The rules engine, the board, the pieces, the strategies, and four components whose behaviour
+*is* concurrency but which still test a single class in isolation: `RequestQueueTest`,
+`RandomSourceIsolationTest`, `GameSessionTest` and `ProtocolCodecTest`. Spawning threads does
+not stop a test being a unit test; talking to another tier does.
 
 | Suite | Guards |
 |---|---|
+| `RuleEngineTest`, `BoardTest`, `PieceTest`, `TurnManagerTest`, … | the Assignment 1 rules, untouched by the refactor |
 | `RandomSourceIsolationTest` | per-game RNG isolation (fails on pre-fix code) |
-| `ProtocolCodecTest` | handshake deadlock, stream reset, ordering, type errors |
 | `RequestQueueTest` | nothing dropped under saturation; backpressure recorded |
-| `GameSessionTest` | lifecycle, snapshot consistency, concurrent independence |
-| `RequestRouterTest` | whole adapter+app stack **with no socket anywhere** |
-| `ServerPushIntegrationTest` | two clients over real sockets; push visibility; burst load |
-| `LoadHarnessTest` | the harness itself: percentile arithmetic, nothing lost under saturation, no errors when lifecycle commands race on one game |
+| `GameSessionTest` | actor lifecycle, snapshot consistency, concurrent independence |
+| `ProtocolCodecTest` | handshake deadlock, stream reset, ordering, type errors |
+
+### `test/integration/` — components joined up
+
+| Suite | Guards |
+|---|---|
+| `RequestRouterTest` | the whole adapter + app + engine stack **with no socket anywhere** |
+| `PersistenceTierTest` | the database tier against real H2 running the project's own `db/schema.sql`: result and place derivation, null seeds and null places, over-long messages, the leaderboard view's arithmetic, and that a full write queue drops rather than blocks the caller |
+
+### `test/automation/` — the system, driven automatically
+
+These stand up a real `ServerAssembly` — **the same composition root `ServerMain` uses**, so
+what is tested is the wiring the tutor will see, not a parallel one that could drift.
+
+| Suite | Guards |
+|---|---|
+| `ServerPushIntegrationTest` | two clients on real sockets: one client's action reaches the other's screen unprompted; 15 clients fire concurrently and every request is answered |
+| `LoadHarnessTest` | the load harness itself: percentile arithmetic, nothing lost under saturation, no errors when lifecycle commands race on one game |
+| `ThreeTierAutomationTest` | **all three tiers at once** — a game played to completion over a socket, its result crossing into the database and read back with `GET_HISTORY` and `GET_LEADERBOARD` on the same connection |
+
+`ThreeTierAutomationTest` closes the one gap the other suites left: every *pairing* was covered
+(client↔server over sockets, server↔database against real H2) but nothing joined the two, so
+the full chain could have broken with the suite still green. It waits for the row rather than
+asserting immediately — not flakiness tolerance, but the contract: writes are fire-and-forget
+precisely so a game never waits on the database, which makes "the game finished" and "the row
+is readable" two genuinely different moments.
+
+> **`run-tests.ps1` wipes `out/test` before compiling.** `javac` only ever adds `.class` files,
+> so a renamed, moved or deleted test leaves its old class behind and JUnit keeps running the
+> stale copy. Splitting the suite into three packages made this visible: for one run it
+> reported **387 tests instead of 192**, every suite discovered twice under both its old and
+> new package name.
 
 ### Verified live
 
@@ -802,7 +987,6 @@ send faster than a person can click, which is the argument for step 6 existing a
 
 | Step | Work |
 |---|---|
-| 5 | `persistence/` + H2 as its own process; `db/schema.sql`, `db/seed.sql`; async writer; leaderboard/history tabs. `GameRepository.NO_OP` is the seam — swap one argument in `ServerMain`. |
 | 7 | Report: (a) Clean Architecture across tiers, (b) critical analysis of concurrency mechanisms, with the RNG singleton as the worked example and §5 "the three mechanisms considered" as the threading example. |
 | 6b | **Open defect from step 6**: split `ClientConnection`s outbound queue so a response is never the frame sacrificed. See §6b. Small, contained, and it is what stands between run D and a clean sweep. |
 | 7b | Benchmark harness: hosted-games sweep at 10 / 100 / 500 / 1000 recording thread count + memory, run against both the platform-thread build (via git history) and the virtual build, plus one `ulimit -u 500` hard-fail run. Builds on the step-6 test clients. |
@@ -814,13 +998,16 @@ send faster than a person can click, which is the argument for step 6 existing a
 | Quality of the GUI | 10% | many features integrated | done |
 | Server-side concurrency | 25% | simultaneous requests from fast automatic clients, queued | done and **evidenced** — §6b run A: queue at 32/32, 156 caller-runs, 2,000 of 2,000 answered |
 | Client-side concurrency | 25% | **two test clients** sending async requests in rapid succession | done — §6b: 2 sockets × 4 threads, no worker ever waits on an answer, 2,376 pushes received unprompted |
-| Architecture | 20% | client, server, database as **three different applications** | **step 5, not built** |
+| Architecture | 20% | client, server, database as **three different applications** | done and **evidenced** — §6c: `run-db.ps1` (H2, port 9092), `run-server.ps1`, `run-client.ps1`; one live game's result read back through all three |
 | Critical discussion | 20% | *all* appropriate mechanisms discussed with insightful justification | §5 covers the threading set; breadth is the grade ladder, so keep rejected mechanisms in |
 
-Priority follows the weights. Step 6 is done, so the 50% across the two concurrency criteria is
-now evidenced rather than asserted, and the load numbers step 7b needs exist. **Step 5 is the
-only unbuilt thing still gating a top band** (Architecture, 20%), with the §6b defect as a
-small, contained job to do alongside it.
+Priority follows the weights. **Every criterion that requires code is now built and
+evidenced** — steps 4, 5 and 6 between them cover the GUI (10%), Architecture (20%) and the two
+concurrency bands (50%). What remains is the report (step 7, 20%), for which §3, §5 and §6c are
+the source material, plus two optional jobs: the §6b defect and the step-7b benchmark sweep.
+Neither gates a band; the defect is worth fixing because it is the one known hole in an
+otherwise clean load result, and 7b would strengthen the critical discussion rather than
+complete it.
 
 ### Checkpoint
 

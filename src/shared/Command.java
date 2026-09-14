@@ -40,5 +40,18 @@ public enum Command {
     SET_SPEED,
 
     /** Returns a {@link ServerMetricsDto} describing queue and connection load. */
-    GET_METRICS
+    GET_METRICS,
+
+    /**
+     * Returns finished games from the database tier, newest first, as a list of
+     * {@link FinishedGameDto}. Optional param: {@code limit}.
+     *
+     * <p>Unlike {@link #LIST_GAMES}, this outlives the sessions it describes — it is answered
+     * from storage, not from the registry, and returns an empty list when no database tier is
+     * attached rather than failing.
+     */
+    GET_HISTORY,
+
+    /** Returns a {@link StrategyRankingDto} per AI strategy, aggregated by the database. */
+    GET_LEADERBOARD
 }

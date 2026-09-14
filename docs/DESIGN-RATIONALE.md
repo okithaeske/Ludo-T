@@ -77,20 +77,42 @@ outbound-queue defect (§2.1) → benchmark harness → report**.
 ## 2. Current state
 
 ```
-┌─────────────┐   Swing GUI      ┌─────────────┐   sockets    ┌──────────────┐
+┌─────────────┐   Swing GUI      ┌─────────────┐    JDBC     ┌──────────────┐
 │  client/ui  │ ───────────────▶ │   server    │ ───────────▶ │  H2 database │
 │  (process)  │ ◀─────────────── │  (process)  │              │  (process)   │
 └─────────────┘   server pushes  └─────────────┘              └──────────────┘
-      ✅ built                        ✅ built                    ❌ step 5
+ run-client.ps1                   run-server.ps1                 run-db.ps1
+      ✅ built                        ✅ built                       ✅ built
 ```
 
-🟢 **MEASURED:** `powershell -File run-tests.ps1` → **175/175 tests pass**, 29 containers,
-3.5 s. `build.ps1` → 130 production files compile. JDK: Temurin 25.0.1.
+🟢 **MEASURED (2026-09-08):** `powershell -File run-tests.ps1` → **195/195 tests pass**.
+`build.ps1` → 142 production files compile. JDK: Temurin 25.0.1.
 
-⚠️ `coverage.ps1` reports 277/284 — 7 phantom failures from stale class files in `out\test\`
-and `out\coverage-test\` (an old `test.test.*` package layout compiled against a superseded
-`EffectHandler` constructor). Pre-existing, unrelated to any design decision here, fixable with
-two `Remove-Item` lines. **Do not cite the 284 number anywhere.**
+The suite is split three ways by what a failure would mean: `test/unit/` (22 files, one class
+under test), `test/integration/` (2, components joined up or a real database), and
+`test/automation/` (3, the running system driven by automated clients — including
+`ThreeTierAutomationTest`, which plays a game to completion over a socket and reads the result
+back out of the database).
+
+🟢 **MEASURED — coverage.** `coverage.ps1`, all 195 tests green under JaCoCo:
+
+| Scope | Line coverage |
+|---|---|
+| Whole project | **53.4%** (2,679 / 5,013) |
+| Excluding `ui` and `client`, which have no automated tests | **75.9%** (2,679 / 3,530) |
+| `engine`, `enums`, `app.model`, `player.strategy` | 97–100% |
+| `persistence`, `net`, `adapter`, `shared` | 82–87% |
+| `ui` (1,271 lines) and `client` (212 lines) | 0% — Swing, verified by running it |
+
+Quote either figure, but always with the reason: the gap is entirely the GUI. Reporting the
+higher number while silently dropping the untested packages is exactly the sort of thing this
+document exists to prevent.
+
+⚠️ **The earlier "277/284, 7 phantom failures" warning is resolved.** The cause was stale
+`.class` files — `javac` only ever adds, so a renamed or moved test kept running from its old
+copy. Both `run-tests.ps1` and `coverage.ps1` now wipe their output trees before compiling. The
+same bug resurfaced during the three-way test split, where it briefly reported **387 tests
+instead of 192**: every suite discovered twice, under both its old and its new package name.
 
 ---
 
