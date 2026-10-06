@@ -26,6 +26,11 @@ powershell -ExecutionPolicy Bypass -File run-client.ps1                         
 powershell -ExecutionPolicy Bypass -File run-client.ps1 -ServerHost 192.168.1.20 # another machine
 ```
 
+```powershell
+powershell -ExecutionPolicy Bypass -File run-db.ps1 -Reset
+powershell -ExecutionPolicy Bypass -File run-server.ps1
+```
+
 Run two clients and drive a game from one — the other shows the board advancing without
 being asked. In the client: `create LUDO_T 42 150`, `sub g1`, `start g1`, `pause g1`,
 `step g1`, `metrics`, `help`. Demos can be scripted with the `sleep <millis>` command and
