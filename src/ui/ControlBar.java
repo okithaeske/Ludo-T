@@ -37,6 +37,8 @@ public final class ControlBar extends JPanel {
     private Consumer<Command> commandListener = command -> { };
     private BiConsumer<String, Long> speedListener = (gameId, millis) -> { };
     private String gameId;
+    /** False while the selected game belongs to another player: it can be watched, not driven. */
+    private boolean controllable;
 
     public ControlBar() {
         setLayout(new FlowLayout(FlowLayout.LEFT, 8, 8));
@@ -66,7 +68,8 @@ public final class ControlBar extends JPanel {
         speed.addChangeListener(event -> {
             updateSpeedLabel();
             // Fire only when the drag ends, or every intermediate value becomes a request.
-            if (!speed.getValueIsAdjusting() && gameId != null) {
+            // showSpeed moves the slider too, so a watcher must not turn that into a request.
+            if (!speed.getValueIsAdjusting() && gameId != null && controllable) {
                 speedListener.accept(gameId, (long) speed.getValue());
             }
         });
@@ -76,7 +79,7 @@ public final class ControlBar extends JPanel {
         add(speedLabel);
 
         updateSpeedLabel();
-        setSelectedGame(null, null);
+        setSelectedGame(null, null, false);
         applyTheme();
     }
 
@@ -108,9 +111,13 @@ public final class ControlBar extends JPanel {
      * Points the bar at a game and enables only the commands its state allows.
      *
      * @param state one of the {@code SessionState} names, or null when nothing is selected
+     * @param controllable false for another player's game, which leaves every control disabled.
+     *                     The server refuses those commands regardless; this only stops the
+     *                     window offering something that cannot work.
      */
-    public void setSelectedGame(String gameId, String state) {
+    public void setSelectedGame(String gameId, String state, boolean controllable) {
         this.gameId = gameId;
+        this.controllable = controllable;
 
         if (gameId == null) {
             gameLabel.setText("No game selected");
@@ -120,8 +127,14 @@ public final class ControlBar extends JPanel {
             return;
         }
 
-        gameLabel.setText(gameId + "  ·  " + state);
         gameLabel.setForeground(Theme.text());
+        if (!controllable) {
+            gameLabel.setText(gameId + "  ·  " + state + "  ·  watching only");
+            buttons.values().forEach(button -> button.setEnabled(false));
+            speed.setEnabled(false);
+            return;
+        }
+        gameLabel.setText(gameId + "  ·  " + state);
         speed.setEnabled(true);
 
         boolean created = "CREATED".equals(state);

@@ -3,6 +3,7 @@ package test.integration;
 import adapter.ClientSession;
 import adapter.GameController;
 import adapter.GameEventBroadcaster;
+import adapter.GameOwnership;
 import adapter.HistoryController;
 import adapter.LobbyController;
 import adapter.RequestRouter;
@@ -72,16 +73,18 @@ class RequestRouterTest {
         registry = new SessionRegistry(EventSink.NO_OP, GameRepository.NO_OP, Clock.SYSTEM,
                 GameEventBroadcaster::new);
 
+        GameOwnership ownership = new GameOwnership();
+
         GameController games = new GameController(
                 new StartGameUseCase(registry), new PauseGameUseCase(registry),
                 new ResumeGameUseCase(registry), new StepRoundUseCase(registry),
                 new AbortGameUseCase(registry), new SetSpeedUseCase(registry),
-                new GetSnapshotUseCase(registry));
+                new GetSnapshotUseCase(registry), ownership);
 
         LobbyController lobby = new LobbyController(
                 new CreateGameUseCase(registry), new ListGamesUseCase(registry),
                 new SubscribeToGameUseCase(registry), new UnsubscribeFromGameUseCase(registry),
-                () -> STUB_METRICS);
+                () -> STUB_METRICS, ownership);
 
         // NO_OP repository: the router's job is dispatch, and the history commands are
         // asserted here to reach their controller and come back empty rather than unsupported.
@@ -107,6 +110,71 @@ class RequestRouterTest {
                 Map.of("mode", "LUDO_T", "seed", "42", "tickMillis", "0"));
         Assertions.assertTrue(response.isOk(), response.getMessage());
         return ((SessionSummaryDto) response.getPayload()).gameId();
+    }
+
+    private String createGameOwnedBy(String controlKey) {
+        Response response = send(Command.CREATE_GAME,
+                Map.of("mode", "LUDO_T", "seed", "42", "tickMillis", "0",
+                        "controlKey", controlKey));
+        Assertions.assertTrue(response.isOk(), response.getMessage());
+        return ((SessionSummaryDto) response.getPayload()).gameId();
+    }
+
+    @Test
+    @DisplayName("should_refuseEveryControlCommand_when_senderDidNotCreateTheGame")
+    void should_refuseEveryControlCommand_when_senderDidNotCreateTheGame() {
+        String gameId = createGameOwnedBy("alice");
+
+        for (Command command : new Command[] {Command.START_GAME, Command.PAUSE_GAME,
+                Command.RESUME_GAME, Command.STEP_ROUND, Command.ABORT_GAME}) {
+            Assertions.assertEquals(ResponseStatus.ERROR,
+                    send(command, Map.of("gameId", gameId, "controlKey", "bob")).getStatus(),
+                    command.name());
+            // Sending no key at all must not be a way round the check.
+            Assertions.assertEquals(ResponseStatus.ERROR,
+                    send(command, Map.of("gameId", gameId)).getStatus(), command.name());
+        }
+        Assertions.assertEquals(ResponseStatus.ERROR, send(Command.SET_SPEED,
+                Map.of("gameId", gameId, "tickMillis", "10", "controlKey", "bob")).getStatus());
+
+        // Refused, not merely answered with an error: the game is exactly as its owner left it.
+        SessionSummaryDto after = (SessionSummaryDto)
+                send(Command.SUBSCRIBE, Map.of("gameId", gameId)).getPayload();
+        Assertions.assertEquals("CREATED", after.state());
+        Assertions.assertEquals(0, after.round());
+    }
+
+    @Test
+    @DisplayName("should_letAnyoneWatch_when_gameBelongsToAnotherPlayer")
+    void should_letAnyoneWatch_when_gameBelongsToAnotherPlayer() {
+        String gameId = createGameOwnedBy("alice");
+
+        Assertions.assertTrue(send(Command.SUBSCRIBE, Map.of("gameId", gameId)).isOk());
+        Assertions.assertTrue(client.isSubscribed(gameId));
+        Assertions.assertInstanceOf(BoardSnapshot.class,
+                send(Command.GET_SNAPSHOT, Map.of("gameId", gameId)).getPayload());
+    }
+
+    @Test
+    @DisplayName("should_letTheCreatorControl_when_itSendsItsOwnKey")
+    void should_letTheCreatorControl_when_itSendsItsOwnKey() {
+        String gameId = createGameOwnedBy("alice");
+
+        Response response = send(Command.STEP_ROUND,
+                Map.of("gameId", gameId, "controlKey", "alice"));
+
+        Assertions.assertTrue(response.isOk(), response.getMessage());
+        Assertions.assertEquals(1, ((SessionSummaryDto) response.getPayload()).round());
+    }
+
+    @Test
+    @DisplayName("should_stayOpenToEveryone_when_gameWasCreatedWithoutAKey")
+    void should_stayOpenToEveryone_when_gameWasCreatedWithoutAKey() {
+        String gameId = createGame();
+
+        Assertions.assertTrue(send(Command.STEP_ROUND,
+                Map.of("gameId", gameId, "controlKey", "bob")).isOk());
+        Assertions.assertTrue(send(Command.STEP_ROUND, Map.of("gameId", gameId)).isOk());
     }
 
     @Test

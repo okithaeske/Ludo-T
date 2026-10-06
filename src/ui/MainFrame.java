@@ -37,8 +37,11 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -84,6 +87,16 @@ public final class MainFrame extends JFrame {
     private final JLabel toast = new JLabel("", JLabel.CENTER);
     private final Timer toastTimer;
     private final Timer reconnectTimer;
+
+    /**
+     * This window's proof of ownership, sent with every game it creates and every command that
+     * controls one. Made up once per window and kept across reconnects, so losing the socket
+     * does not lose control of the games this window started.
+     */
+    private final String controlKey = UUID.randomUUID().toString();
+
+    /** Games this window created. Every other game in the lobby can be watched but not driven. */
+    private final Set<String> ownGames = new HashSet<>();
 
     /** Latest known state per game, so the control bar can be driven without a round trip. */
     private final Map<String, SessionSummaryDto> knownSessions = new HashMap<>();
@@ -315,7 +328,8 @@ public final class MainFrame extends JFrame {
         controls.setCommandListener(this::sendForSelected);
         controls.setSpeedListener((gameId, millis) ->
                 send(Command.SET_SPEED,
-                        Map.of("gameId", gameId, "tickMillis", String.valueOf(millis))));
+                        Map.of("gameId", gameId, "tickMillis", String.valueOf(millis),
+                                "controlKey", controlKey)));
     }
 
     private void attachConnection(ServerConnection connection) {
@@ -342,7 +356,8 @@ public final class MainFrame extends JFrame {
         lobby.upsertSession(session);
 
         if (session.gameId().equals(selectedGameId)) {
-            controls.setSelectedGame(session.gameId(), session.state());
+            controls.setSelectedGame(session.gameId(), session.state(),
+                    ownGames.contains(session.gameId()));
             controls.showSpeed(session.tickMillis());
         }
     }
@@ -385,11 +400,14 @@ public final class MainFrame extends JFrame {
         send(Command.SUBSCRIBE, Map.of("gameId", gameId));
 
         eventLog.clear();
-        eventLog.appendSystem("Watching " + gameId);
+        eventLog.appendSystem(ownGames.contains(gameId)
+                ? "Watching " + gameId
+                : "Watching " + gameId + " - another player's game, view only");
         board.clear();
 
         SessionSummaryDto known = knownSessions.get(gameId);
-        controls.setSelectedGame(gameId, known == null ? "?" : known.state());
+        controls.setSelectedGame(gameId, known == null ? "?" : known.state(),
+                ownGames.contains(gameId));
         if (known != null) {
             controls.showSpeed(known.tickMillis());
         }
@@ -411,7 +429,12 @@ public final class MainFrame extends JFrame {
             showToast("Select a game first", Theme.warn());
             return;
         }
-        send(command, Map.of("gameId", selectedGameId));
+        // The buttons are already disabled; this catches the keyboard shortcuts.
+        if (!ownGames.contains(selectedGameId)) {
+            showToast("You can watch " + selectedGameId + " but not control it", Theme.warn());
+            return;
+        }
+        send(command, Map.of("gameId", selectedGameId, "controlKey", controlKey));
     }
 
     private CompletableFuture<Response> send(Command command, Map<String, String> params) {
@@ -519,12 +542,15 @@ public final class MainFrame extends JFrame {
         Map<String, String> params = new HashMap<>();
         params.put("mode", String.valueOf(mode.getSelectedItem()));
         params.put("tickMillis", tick.getText().isBlank() ? "250" : tick.getText().trim());
+        params.put("controlKey", controlKey);
         if (!seed.getText().isBlank()) {
             params.put("seed", seed.getText().trim());
         }
 
         send(Command.CREATE_GAME, params).thenAcceptAsync(response -> {
             if (response.isOk() && response.getPayload() instanceof SessionSummaryDto summary) {
+                // Before selecting, so the control bar comes up enabled for the new game.
+                ownGames.add(summary.gameId());
                 knownSessions.put(summary.gameId(), summary);
                 lobby.upsertSession(summary);
                 lobby.select(summary.gameId());

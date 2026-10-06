@@ -558,6 +558,37 @@ auto-reconnect with re-subscribe · non-blocking toasts · keyboard shortcuts.
 | `Ctrl+D` | Toggle theme |
 | `F5` | Refresh lobby |
 
+### Watching another player's game (added 2026-10-06)
+
+**The forcing constraint.** Any client could pause or abort any game, so two people sharing a
+server could wreck each other's games by accident.
+
+**What was chosen.** The client that creates a game is the only one that can control it; every
+other client can click it in the lobby and watch it live, with the control bar disabled and
+labelled "watching only". The rule is enforced on the server (`adapter/GameOwnership`, checked
+in `GameController.awaitSummary`, the one path every game-changing command takes) — a disabled
+button is a courtesy, and any program that can open a socket can send `ABORT_GAME`.
+
+**Options considered.** *Owner = the connection* fails on the first network drop: a
+reconnected client is a new connection and would be locked out of its own games. *A separate
+spectator client* (`-Spectator` flag) was built first and dropped: it makes viewing a property
+of the window, when what was wanted is a property of the game. *Chosen:* a random `controlKey`
+the window invents once, sends with `CREATE_GAME` and with each control command, and keeps
+across reconnects. It appears in no DTO, so no other client ever learns it.
+
+**Known weaknesses.**
+- The key lives only in the window's memory. Close the window and nobody can control its games
+  any more; they run to completion and can no longer be paused or aborted.
+- A game created with no key (console client, load harness) has no owner and stays open to
+  everyone — deliberately, so the §6b measurements are unchanged — but the GUI still shows such
+  a game as "watching only", because the client cannot tell an unowned game from someone else's.
+- The key is claimed just after the game is created, so for an instant the game has no owner.
+- Ownership entries are never removed; one small map entry per game for the server's lifetime.
+
+🟢 Guarded by four tests in `RequestRouterTest` (non-owner refused and game state unchanged,
+anyone may watch, owner may control, keyless game stays open). 🔴 Not yet verified in two live
+GUI windows.
+
 ### Two layout lessons worth keeping
 
 1. **`setDividerLocation` is ignored until a `JSplitPane` has been validated.** Setting it in

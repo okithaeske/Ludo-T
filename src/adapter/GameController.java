@@ -44,11 +44,12 @@ public final class GameController {
     private final AbortGameUseCase abortGame;
     private final SetSpeedUseCase setSpeed;
     private final GetSnapshotUseCase getSnapshot;
+    private final GameOwnership ownership;
 
     public GameController(StartGameUseCase startGame, PauseGameUseCase pauseGame,
                           ResumeGameUseCase resumeGame, StepRoundUseCase stepRound,
                           AbortGameUseCase abortGame, SetSpeedUseCase setSpeed,
-                          GetSnapshotUseCase getSnapshot) {
+                          GetSnapshotUseCase getSnapshot, GameOwnership ownership) {
         this.startGame = startGame;
         this.pauseGame = pauseGame;
         this.resumeGame = resumeGame;
@@ -56,6 +57,7 @@ public final class GameController {
         this.abortGame = abortGame;
         this.setSpeed = setSpeed;
         this.getSnapshot = getSnapshot;
+        this.ownership = ownership;
     }
 
     public Response start(Request request) {
@@ -104,13 +106,22 @@ public final class GameController {
         }
     }
 
-    /** Shared shape for every command that names a game and answers with its new summary. */
+    /**
+     * Shared shape for every command that names a game and answers with its new summary.
+     *
+     * <p>Every command that <em>changes</em> a game passes through here and nothing that only
+     * reads one does, which makes this the single place the owner check has to live.
+     */
     private Response awaitSummary(Request request,
                                   java.util.function.Function<String,
                                           CompletableFuture<SessionSummary>> action) {
         String gameId = request.param(PARAM_GAME_ID);
         if (gameId == null || gameId.isBlank()) {
             return Response.error(request.getId(), "gameId is required");
+        }
+        if (!ownership.permits(gameId, request.param(GameOwnership.PARAM_CONTROL_KEY))) {
+            return Response.error(request.getId(), gameId
+                    + " belongs to another player - you can watch it but not control it");
         }
         try {
             SessionSummary summary = await(action.apply(gameId));

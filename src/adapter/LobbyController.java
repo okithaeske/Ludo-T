@@ -28,16 +28,18 @@ public final class LobbyController {
     private final SubscribeToGameUseCase subscribeToGame;
     private final UnsubscribeFromGameUseCase unsubscribeFromGame;
     private final MetricsProvider metrics;
+    private final GameOwnership ownership;
 
     public LobbyController(CreateGameUseCase createGame, ListGamesUseCase listGames,
                            SubscribeToGameUseCase subscribeToGame,
                            UnsubscribeFromGameUseCase unsubscribeFromGame,
-                           MetricsProvider metrics) {
+                           MetricsProvider metrics, GameOwnership ownership) {
         this.createGame = createGame;
         this.listGames = listGames;
         this.subscribeToGame = subscribeToGame;
         this.unsubscribeFromGame = unsubscribeFromGame;
         this.metrics = metrics;
+        this.ownership = ownership;
     }
 
     public Response ping(Request request) {
@@ -72,6 +74,8 @@ public final class LobbyController {
         }
 
         SessionSummary summary = createGame.execute(mode, seed, tickMillis);
+        // Whoever created the game is the only client allowed to control it from here on.
+        ownership.claim(summary.gameId(), request.param(GameOwnership.PARAM_CONTROL_KEY));
         return Response.ok(request.getId(), SnapshotMapper.toDto(summary));
     }
 

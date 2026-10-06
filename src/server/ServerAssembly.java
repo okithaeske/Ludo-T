@@ -1,6 +1,7 @@
 package server;
 
 import adapter.GameController;
+import adapter.GameOwnership;
 import adapter.GameEventBroadcaster;
 import adapter.HistoryController;
 import adapter.LobbyController;
@@ -63,6 +64,10 @@ public final class ServerAssembly implements AutoCloseable {
         connections.setLiveSessionCount(sessions::liveCount);
         connections.setSubscriptionReleaser(unsubscribeFromGame::execute);
 
+        // One instance shared by both controllers: the lobby records who created a game, and
+        // the game controller asks before letting anyone change it.
+        GameOwnership ownership = new GameOwnership();
+
         GameController gameController = new GameController(
                 new StartGameUseCase(sessions),
                 new PauseGameUseCase(sessions),
@@ -70,14 +75,16 @@ public final class ServerAssembly implements AutoCloseable {
                 new StepRoundUseCase(sessions),
                 new AbortGameUseCase(sessions),
                 new SetSpeedUseCase(sessions),
-                new GetSnapshotUseCase(sessions));
+                new GetSnapshotUseCase(sessions),
+                ownership);
 
         LobbyController lobbyController = new LobbyController(
                 new CreateGameUseCase(sessions),
                 new ListGamesUseCase(sessions),
                 new SubscribeToGameUseCase(sessions),
                 unsubscribeFromGame,
-                connections);
+                connections,
+                ownership);
 
         // The history controller is the only one wired straight to the repository rather
         // than to the session registry: its answers outlive every session.
