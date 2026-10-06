@@ -113,6 +113,12 @@ public final class PlayerStatusPanel extends JPanel {
         setPreferredSize(new Dimension(250, 240));
     }
 
+    /** Empties the panel when no game is being watched; the next snapshot fills it again. */
+    public void clear() {
+        cards.forEach(card -> card.setVisible(false));
+        repaint();
+    }
+
     public void showSnapshot(BoardSnapshot snapshot) {
         List<PlayerDto> players = snapshot.players();
         for (int i = 0; i < cards.size(); i++) {

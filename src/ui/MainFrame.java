@@ -101,6 +101,9 @@ public final class MainFrame extends JFrame {
     /** Latest known state per game, so the control bar can be driven without a round trip. */
     private final Map<String, SessionSummaryDto> knownSessions = new HashMap<>();
 
+    private final JPanel boardHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 6));
+    private final JButton back = new JButton("< Back");
+
     private JSplitPane rightSplit;
     private JTabbedPane rightTabs;
 
@@ -162,6 +165,7 @@ public final class MainFrame extends JFrame {
 
         JPanel centre = new JPanel(new BorderLayout());
         centre.setOpaque(false);
+        centre.add(buildBoardHeader(), BorderLayout.NORTH);
         centre.add(board, BorderLayout.CENTER);
         centre.add(controls, BorderLayout.SOUTH);
         // Without a minimum the board would be squeezed to nothing when a divider is dragged.
@@ -284,6 +288,8 @@ public final class MainFrame extends JFrame {
                 "newGame", this::showNewGameDialog);
         bind(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0),
                 "refresh", this::refreshLobby);
+        bind(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                "back", this::leaveGame);
         bind(KeyStroke.getKeyStroke(KeyEvent.VK_D, InputEvent.CTRL_DOWN_MASK),
                 "theme", this::toggleTheme);
         bind(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK),
@@ -384,7 +390,42 @@ public final class MainFrame extends JFrame {
         }
     }
 
+    /** A slim bar above the board holding the way out of the game being watched. */
+    private JPanel buildBoardHeader() {
+        boardHeader.setBackground(Theme.panel());
+        back.setFont(Theme.uiFont(12));
+        back.setToolTipText("Stop watching this game and return to the empty board  (Esc)");
+        back.setFocusable(false);
+        back.setEnabled(false);
+        back.addActionListener(event -> leaveGame());
+        boardHeader.add(back);
+        return boardHeader;
+    }
+
     // ── Actions ──────────────────────────────────────────────────────────────
+
+    /**
+     * Stops watching the selected game and puts the window back as it was when it opened.
+     *
+     * <p>This ends the <em>watching</em>, not the game: the server keeps running it, and
+     * unsubscribing only stops boards being sent to a window no longer showing them. Clicking
+     * the game in the list again picks it up wherever it has got to.
+     */
+    private void leaveGame() {
+        if (selectedGameId == null) {
+            return;
+        }
+        send(Command.UNSUBSCRIBE, Map.of("gameId", selectedGameId));
+        selectedGameId = null;
+
+        // Cleared so that clicking the game just left counts as a new selection and reopens it.
+        lobby.clearSelection();
+        controls.setSelectedGame(null, null, false);
+        board.clear();
+        players.clear();
+        eventLog.clear();
+        back.setEnabled(false);
+    }
 
     private void selectGame(String gameId) {
         if (gameId == null || gameId.equals(selectedGameId)) {
@@ -398,6 +439,7 @@ public final class MainFrame extends JFrame {
             send(Command.UNSUBSCRIBE, Map.of("gameId", previous));
         }
         send(Command.SUBSCRIBE, Map.of("gameId", gameId));
+        back.setEnabled(true);
 
         eventLog.clear();
         eventLog.appendSystem(ownGames.contains(gameId)
@@ -568,6 +610,7 @@ public final class MainFrame extends JFrame {
     private void applyTheme() {
         getContentPane().setBackground(Theme.background());
         lobby.applyTheme();
+        boardHeader.setBackground(Theme.panel());
         controls.applyTheme();
         players.applyTheme();
         eventLog.applyTheme();

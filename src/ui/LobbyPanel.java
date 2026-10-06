@@ -230,6 +230,16 @@ public final class LobbyPanel extends JPanel {
         reselect(gameId);
     }
 
+    /**
+     * Forgets the current selection.
+     *
+     * <p>Opening a game is driven by selection changing, so a row left selected could not be
+     * opened a second time: clicking it again changes nothing and fires nothing.
+     */
+    public void clearSelection() {
+        table.clearSelection();
+    }
+
     private void updateHeading() {
         heading.setText("Games (" + model.getRowCount() + ")");
     }
