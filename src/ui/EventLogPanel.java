@@ -53,7 +53,7 @@ public final class EventLogPanel extends JPanel {
         autoScroll.setToolTipText("Keep the newest line in view");
         controls.add(autoScroll);
 
-        JButton clear = new JButton("Clear");
+        JButton clear = new ThemedButton("Clear");
         clear.setFont(Theme.uiFont(11));
         clear.setFocusable(false);
         clear.addActionListener(event -> clear());

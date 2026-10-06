@@ -7,38 +7,31 @@ import javax.swing.Box;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JSlider;
-import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Start / Pause / Resume / Step / Abort, plus a speed slider.
+ * Start / Pause / Resume / Step / Abort.
  *
  * <p>Buttons are enabled from the selected game's state rather than from what this client last
  * clicked, because another client may have paused the game a moment ago. Deriving the controls
  * from server state is what stops two clients disagreeing about what is possible.
+ *
+ * <p>There is deliberately no speed control: every game this window creates runs at one
+ * default round delay. The server still understands {@code SET_SPEED}, which the console
+ * client and the load harness use.
  */
 public final class ControlBar extends JPanel {
 
     private static final long serialVersionUID = 1L;
 
-    private static final int MIN_TICK_MILLIS = 0;
-    private static final int MAX_TICK_MILLIS = 1000;
-
     private final Map<Command, JButton> buttons = new LinkedHashMap<>();
-    private final JSlider speed = new JSlider(MIN_TICK_MILLIS, MAX_TICK_MILLIS, 250);
-    private final JLabel speedLabel = new JLabel();
     private final JLabel gameLabel = new JLabel("No game selected");
 
     private Consumer<Command> commandListener = command -> { };
-    private BiConsumer<String, Long> speedListener = (gameId, millis) -> { };
     private String gameId;
-    /** False while the selected game belongs to another player: it can be watched, not driven. */
-    private boolean controllable;
 
     public ControlBar() {
         setLayout(new FlowLayout(FlowLayout.LEFT, 8, 8));
@@ -55,36 +48,12 @@ public final class ControlBar extends JPanel {
         addButton(Command.STEP_ROUND, "Step", "Advance exactly one round  (Ctrl+.)");
         addButton(Command.ABORT_GAME, "Abort", "End this game permanently");
 
-        add(Box.createHorizontalStrut(16));
-
-        JLabel speedTitle = new JLabel("Speed");
-        speedTitle.setFont(Theme.uiFont(12));
-        speedTitle.setForeground(Theme.textMuted());
-        add(speedTitle);
-
-        speed.setPreferredSize(new Dimension(150, 24));
-        speed.setBackground(Theme.panel());
-        speed.setToolTipText("Delay between rounds — left is faster");
-        speed.addChangeListener(event -> {
-            updateSpeedLabel();
-            // Fire only when the drag ends, or every intermediate value becomes a request.
-            // showSpeed moves the slider too, so a watcher must not turn that into a request.
-            if (!speed.getValueIsAdjusting() && gameId != null && controllable) {
-                speedListener.accept(gameId, (long) speed.getValue());
-            }
-        });
-        add(speed);
-
-        speedLabel.setFont(Theme.monoFont(12));
-        add(speedLabel);
-
-        updateSpeedLabel();
         setSelectedGame(null, null, false);
         applyTheme();
     }
 
     private void addButton(Command command, String text, String tooltip) {
-        JButton button = new JButton(text);
+        JButton button = new ThemedButton(text);
         button.setFont(Theme.uiFont(12));
         button.setToolTipText(tooltip);
         button.setFocusable(false);
@@ -97,16 +66,6 @@ public final class ControlBar extends JPanel {
         this.commandListener = listener;
     }
 
-    public void setSpeedListener(BiConsumer<String, Long> listener) {
-        this.speedListener = listener;
-    }
-
-    private void updateSpeedLabel() {
-        int value = speed.getValue();
-        speedLabel.setText(value == 0 ? "max" : value + " ms");
-        speedLabel.setForeground(Theme.textMuted());
-    }
-
     /**
      * Points the bar at a game and enables only the commands its state allows.
      *
@@ -117,13 +76,11 @@ public final class ControlBar extends JPanel {
      */
     public void setSelectedGame(String gameId, String state, boolean controllable) {
         this.gameId = gameId;
-        this.controllable = controllable;
 
         if (gameId == null) {
             gameLabel.setText("No game selected");
             gameLabel.setForeground(Theme.textMuted());
             buttons.values().forEach(button -> button.setEnabled(false));
-            speed.setEnabled(false);
             return;
         }
 
@@ -131,11 +88,9 @@ public final class ControlBar extends JPanel {
         if (!controllable) {
             gameLabel.setText(gameId + "  ·  " + state + "  ·  watching only");
             buttons.values().forEach(button -> button.setEnabled(false));
-            speed.setEnabled(false);
             return;
         }
         gameLabel.setText(gameId + "  ·  " + state);
-        speed.setEnabled(true);
 
         boolean created = "CREATED".equals(state);
         boolean running = "RUNNING".equals(state);
@@ -149,23 +104,12 @@ public final class ControlBar extends JPanel {
         buttons.get(Command.ABORT_GAME).setEnabled(!terminal);
     }
 
-    /** Reflects a speed set by another client without firing a request back. */
-    public void showSpeed(long tickMillis) {
-        int clamped = (int) Math.max(MIN_TICK_MILLIS, Math.min(MAX_TICK_MILLIS, tickMillis));
-        if (speed.getValue() != clamped && !speed.getValueIsAdjusting()) {
-            speed.setValue(clamped);
-        }
-    }
-
     public void applyTheme() {
         setBackground(Theme.panel());
         setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Theme.border()));
-        speed.setBackground(Theme.panel());
-        updateSpeedLabel();
-        for (JButton button : buttons.values()) {
-            button.setBackground(Theme.panelAlt());
-            button.setForeground(Theme.text());
-        }
+        // The label's colour is otherwise only set when the selection changes, which left it in
+        // the previous theme's colour after a switch.
+        gameLabel.setForeground(gameId == null ? Theme.textMuted() : Theme.text());
         repaint();
     }
 }

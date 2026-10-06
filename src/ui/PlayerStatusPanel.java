@@ -17,6 +17,8 @@ import java.util.List;
 /** Per-player standing: piece counts, captures, strategy, and any active effects. */
 public final class PlayerStatusPanel extends JPanel {
 
+    private final JLabel heading = new JLabel();
+
     private static final long serialVersionUID = 1L;
 
     private final List<PlayerCard> cards = new ArrayList<>();
@@ -95,7 +97,7 @@ public final class PlayerStatusPanel extends JPanel {
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         setBackground(Theme.panel());
 
-        JLabel heading = new JLabel("Players");
+        heading.setText("Players");
         heading.setFont(Theme.uiFontBold(13));
         heading.setForeground(Theme.text());
         add(heading, BorderLayout.NORTH);
@@ -134,6 +136,7 @@ public final class PlayerStatusPanel extends JPanel {
 
     public void applyTheme() {
         setBackground(Theme.panel());
+        heading.setForeground(Theme.text());
         cards.forEach(PlayerCard::applyTheme);
         repaint();
     }

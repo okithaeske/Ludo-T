@@ -52,10 +52,11 @@ public final class HistoryPanel extends JPanel {
     private final JTable resultTable = new JTable(results);
     private final JTable rankingTable = new JTable(rankings);
     private final JLabel status = new JLabel("Not loaded");
-    private final JButton refresh = new JButton("Refresh");
+    private final JButton refresh = new ThemedButton("Refresh");
 
     private final JLabel resultsHeading = new JLabel("Finished games");
     private final JLabel rankingsHeading = new JLabel("Strategy leaderboard");
+    private final List<JPanel> sections = new ArrayList<>();
 
     public HistoryPanel() {
         setLayout(new BorderLayout(0, 6));
@@ -94,6 +95,7 @@ public final class HistoryPanel extends JPanel {
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setRowSorter(new TableRowSorter<>(model));
         table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setDefaultRenderer(new ThemedHeaderRenderer());
         table.setDefaultRenderer(Object.class, new HistoryRenderer());
         table.setDefaultRenderer(Integer.class, new HistoryRenderer());
         table.setDefaultRenderer(Double.class, new HistoryRenderer());
@@ -102,7 +104,10 @@ public final class HistoryPanel extends JPanel {
         scroll.setBorder(BorderFactory.createLineBorder(Theme.border()));
 
         JPanel section = new JPanel(new BorderLayout(0, 4));
-        section.setOpaque(false);
+        // Opaque on purpose: the split pane behind it is painted by the look and feel in a
+        // light colour, which left the heading as pale text on a pale strip.
+        section.setBackground(Theme.panel());
+        sections.add(section);
         section.add(heading, BorderLayout.NORTH);
         section.add(scroll, BorderLayout.CENTER);
         return section;
@@ -271,6 +276,7 @@ public final class HistoryPanel extends JPanel {
         setBackground(Theme.panel());
         resultsHeading.setForeground(Theme.text());
         rankingsHeading.setForeground(Theme.text());
+        sections.forEach(section -> section.setBackground(Theme.panel()));
         status.setForeground(Theme.textMuted());
         for (JTable table : new JTable[] {resultTable, rankingTable}) {
             table.setBackground(Theme.panel());

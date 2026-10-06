@@ -118,6 +118,7 @@ public final class LobbyPanel extends JPanel {
         table.setAutoCreateRowSorter(true);
         table.setRowSorter(new TableRowSorter<>(model));
         table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setDefaultRenderer(new ThemedHeaderRenderer());
         table.setDefaultRenderer(Object.class, new StateColourRenderer());
         table.setDefaultRenderer(Integer.class, new StateColourRenderer());
 

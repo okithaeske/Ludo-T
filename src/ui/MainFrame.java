@@ -64,6 +64,8 @@ public final class MainFrame extends JFrame {
     private static final long serialVersionUID = 1L;
 
     private static final int RECONNECT_DELAY_MILLIS = 3_000;
+    /** Delay between rounds for every game this window creates; there is no control to change it. */
+    private static final long DEFAULT_TICK_MILLIS = 250L;
     /**
      * Width of the lobby and the players/log column.
      *
@@ -102,7 +104,8 @@ public final class MainFrame extends JFrame {
     private final Map<String, SessionSummaryDto> knownSessions = new HashMap<>();
 
     private final JPanel boardHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 6));
-    private final JButton back = new JButton("< Back");
+    private final JButton back = new ThemedButton("< Back");
+    private final JPanel lobbyHeader = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 8));
 
     private JSplitPane rightSplit;
     private JTabbedPane rightTabs;
@@ -225,24 +228,24 @@ public final class MainFrame extends JFrame {
     }
 
     private JPanel buildLobbyHeader() {
-        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 8));
+        JPanel header = lobbyHeader;
         header.setBackground(Theme.panel());
 
-        JButton newGame = new JButton("New game");
+        JButton newGame = new ThemedButton("New game");
         newGame.setFont(Theme.uiFont(12));
         newGame.setToolTipText("Create a game on the server  (Ctrl+N)");
         newGame.setFocusable(false);
         newGame.addActionListener(event -> showNewGameDialog());
         header.add(newGame);
 
-        JButton refresh = new JButton("Refresh");
+        JButton refresh = new ThemedButton("Refresh");
         refresh.setFont(Theme.uiFont(12));
         refresh.setToolTipText("Re-fetch the game list  (F5)");
         refresh.setFocusable(false);
         refresh.addActionListener(event -> refreshLobby());
         header.add(refresh);
 
-        JButton theme = new JButton("Theme");
+        JButton theme = new ThemedButton("Theme");
         theme.setFont(Theme.uiFont(12));
         theme.setToolTipText("Switch between dark and light  (Ctrl+D)");
         theme.setFocusable(false);
@@ -272,7 +275,9 @@ public final class MainFrame extends JFrame {
     private void showToast(String message, Color colour) {
         toast.setText(message);
         toast.setBackground(colour);
-        toast.setForeground(Theme.isDark() ? Color.WHITE : Color.WHITE);
+        // The status colours are light in the dark theme and dark in the light one, so the
+        // text has to flip with them; white on the dark theme's amber was close to unreadable.
+        toast.setForeground(Theme.isDark() ? Theme.background() : Color.WHITE);
 
         Dimension size = toast.getPreferredSize();
         toast.setBounds(getWidth() - size.width - 40, getHeight() - size.height - 70,
@@ -332,10 +337,6 @@ public final class MainFrame extends JFrame {
     private void wireControls() {
         lobby.setSelectionListener(this::selectGame);
         controls.setCommandListener(this::sendForSelected);
-        controls.setSpeedListener((gameId, millis) ->
-                send(Command.SET_SPEED,
-                        Map.of("gameId", gameId, "tickMillis", String.valueOf(millis),
-                                "controlKey", controlKey)));
     }
 
     private void attachConnection(ServerConnection connection) {
@@ -364,7 +365,6 @@ public final class MainFrame extends JFrame {
         if (session.gameId().equals(selectedGameId)) {
             controls.setSelectedGame(session.gameId(), session.state(),
                     ownGames.contains(session.gameId()));
-            controls.showSpeed(session.tickMillis());
         }
     }
 
@@ -450,9 +450,6 @@ public final class MainFrame extends JFrame {
         SessionSummaryDto known = knownSessions.get(gameId);
         controls.setSelectedGame(gameId, known == null ? "?" : known.state(),
                 ownGames.contains(gameId));
-        if (known != null) {
-            controls.showSpeed(known.tickMillis());
-        }
 
         // Fetch the board immediately rather than waiting for the next round to be pushed —
         // a paused or finished game would otherwise show nothing at all.
@@ -562,18 +559,14 @@ public final class MainFrame extends JFrame {
     private void showNewGameDialog() {
         JComboBox<String> mode = new JComboBox<>(new String[] {"LUDO_T", "CLASSIC"});
         JTextField seed = new JTextField();
-        JTextField tick = new JTextField("250");
 
         seed.setToolTipText("Leave blank for a random game; any number makes it reproducible");
-        tick.setToolTipText("Milliseconds between rounds; 0 runs as fast as possible");
 
-        JPanel form = new JPanel(new GridLayout(3, 2, 8, 8));
+        JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
         form.add(new JLabel("Mode"));
         form.add(mode);
         form.add(new JLabel("Seed (optional)"));
         form.add(seed);
-        form.add(new JLabel("Round delay (ms)"));
-        form.add(tick);
 
         int choice = JOptionPane.showConfirmDialog(this, form, "New game",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -583,7 +576,7 @@ public final class MainFrame extends JFrame {
 
         Map<String, String> params = new HashMap<>();
         params.put("mode", String.valueOf(mode.getSelectedItem()));
-        params.put("tickMillis", tick.getText().isBlank() ? "250" : tick.getText().trim());
+        params.put("tickMillis", String.valueOf(DEFAULT_TICK_MILLIS));
         params.put("controlKey", controlKey);
         if (!seed.getText().isBlank()) {
             params.put("seed", seed.getText().trim());
@@ -611,6 +604,7 @@ public final class MainFrame extends JFrame {
         getContentPane().setBackground(Theme.background());
         lobby.applyTheme();
         boardHeader.setBackground(Theme.panel());
+        lobbyHeader.setBackground(Theme.panel());
         controls.applyTheme();
         players.applyTheme();
         eventLog.applyTheme();
